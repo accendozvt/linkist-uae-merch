@@ -249,11 +249,14 @@ const grid = document.getElementById('products-grid');
 fetch('/products')
   .then(r => r.json())
   .then(products => {
-    const list = products.length ? products : PRODUCTS;
+    const list = (products.length ? products : PRODUCTS).slice(0, 9);
     grid.innerHTML = list.map(renderProductCard).join('');
+    if ((products.length ? products : PRODUCTS).length > 9) {
+      grid.insertAdjacentHTML('afterend', '<div style="text-align:center;margin-top:32px"><a href="collection.html" class="btn-primary" style="display:inline-block;padding:14px 36px;text-decoration:none;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.1em">VIEW ALL →</a></div>');
+    }
   })
   .catch(() => {
-    grid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+    grid.innerHTML = PRODUCTS.slice(0, 9).map(renderProductCard).join('');
   });
 </script>
 </body>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full Collection — I Never Left · Linkist × UAE</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.collection-page { max-width:1200px; margin:0 auto; padding:100px 64px 100px; }
+.collection-header { border-bottom:1px solid #1a1a1a; padding-bottom:32px; margin-bottom:48px; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
+.collection-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,72px); line-height:1; }
+.collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.05em; text-align:right; line-height:1.8; }
+.collection-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#444; font-family:'Space Mono',monospace; font-size:13px; }
+@media(max-width:960px) { .collection-grid{grid-template-columns:repeat(3,1fr)} .collection-page{padding:80px 40px 80px} }
+@media(max-width:640px) { .collection-grid{grid-template-columns:1fr 1fr;gap:10px} .collection-page{padding:80px 20px 60px} .collection-header{flex-direction:column;align-items:flex-start} .collection-meta{text-align:left} }
+@media(max-width:400px) { .collection-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div id="nav-root"></div>
+
+<div class="collection-page">
+  <div class="collection-header">
+    <h1 class="collection-title">The Full Collection</h1>
+    <p class="collection-meta">Premium performance fabric · Black · Unisex fit<br>100% proceeds to UAE relief · April 2026</p>
+  </div>
+  <div id="collection-grid"><div class="loading-wrap">Loading...</div></div>
+</div>
+
+<div id="footer-root"></div>
+
+<script src="cart.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderNav('collection');
+document.getElementById('footer-root').innerHTML = renderFooter();
+
+function renderProductCard(p) {
+  const image = p.image_url || p.image || '';
+  const page = p.page || `product.html?id=${p.id}`;
+  return `
+  <a href="${page}" class="pcard">
+    <div class="pcard-img">
+      <img src="${image}" alt="${p.name}" loading="lazy"/>
+      ${p.badge ? `<div class="pcard-badge">${p.badge}</div>` : ''}
+    </div>
+    <div class="pcard-info">
+      <div>
+        <div class="pcard-name">${p.name}</div>
+        <div class="pcard-tag">${p.tag || ''}</div>
+      </div>
+      <div class="pcard-price">${p.price} <span>AED</span></div>
+      <div class="pcard-cta">
+        View & Buy
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+  </a>`;
+}
+
+fetch('/products')
+  .then(r => r.json())
+  .then(products => {
+    const list = products.length ? products : PRODUCTS;
+    const grid = document.getElementById('collection-grid');
+    grid.className = 'collection-grid';
+    grid.innerHTML = list.map(renderProductCard).join('');
+  })
+  .catch(() => {
+    const grid = document.getElementById('collection-grid');
+    grid.className = 'collection-grid';
+    grid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+  });
+</script>
+</body>
+</html>

@@ -179,6 +179,15 @@ tr:hover td { background:rgba(255,255,255,0.02); }
 textarea { width:100%; background:#0d0d0d; border:1px solid #2a2a2a; border-radius:6px; color:var(--white); padding:10px 12px; font-family:'DM Sans',sans-serif; font-size:13px; resize:vertical; }
 textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
 
+/* Image picker */
+.img-picker-toggle { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.12em; color:#E53935; cursor:pointer; background:none; border:none; text-transform:uppercase; margin-top:6px; padding:0; }
+.img-picker-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; max-height:200px; overflow-y:auto; display:none; }
+.img-picker-grid.open { display:grid; }
+.img-thumb { aspect-ratio:1/1; border-radius:6px; overflow:hidden; border:2px solid transparent; cursor:pointer; background:#0d0d0d; }
+.img-thumb:hover, .img-thumb.selected { border-color:#E53935; }
+.img-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.img-picker-empty { font-size:11px; color:#555; padding:12px 0; font-family:'Space Mono',monospace; }
+
 @media(max-width:768px) {
   .stat-grid { grid-template-columns:1fr 1fr; }
   .dash-header { padding:0 16px; }
@@ -300,10 +309,17 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     <div class="input-group"><label>Tagline</label><input type="text" id="pm-tagline" placeholder="Short tagline"/></div>
     <div class="input-group"><label>Price (AED)</label><input type="number" id="pm-price" placeholder="149"/></div>
     <div class="input-group"><label>Badge (optional)</label><input type="text" id="pm-badge" placeholder="BESTSELLER"/></div>
-    <div class="input-group"><label>Image URL</label><input type="text" id="pm-image" placeholder="https://..."/></div>
+    <div class="input-group">
+      <label>Image URL</label>
+      <input type="text" id="pm-image" placeholder="https://... or pick below"/>
+      <button class="img-picker-toggle" onclick="toggleImgPicker('pm-image-picker')" type="button">📁 Pick from uploaded images</button>
+      <div class="img-picker-grid" id="pm-image-picker"></div>
+    </div>
     <div class="input-group">
       <label>Additional Images (one URL per line)</label>
       <textarea id="pm-images" rows="3" placeholder="https://... (optional)"></textarea>
+      <button class="img-picker-toggle" onclick="toggleImgPicker('pm-images-picker')" type="button">📁 Pick from uploaded images</button>
+      <div class="img-picker-grid" id="pm-images-picker"></div>
     </div>
     <div class="input-group"><label>Description</label><input type="text" id="pm-desc" placeholder="Product description"/></div>
     <div class="modal-footer">
@@ -608,6 +624,55 @@ async function loadProducts() {
   } catch(e) { grid.innerHTML = '<div style="color:#E53935;grid-column:1/-1;">Error: ' + e.message + '</div>'; }
 }
 
+// ── Image picker ──────────────────────────────────────────────
+let _imagesCache = null;
+
+async function loadAdminImages() {
+  if (_imagesCache) return _imagesCache;
+  try {
+    const creds = getAdminCreds();
+    const res = await fetch('/admin/images', { headers: { 'x-admin-email': creds.email, 'x-admin-password': creds.password } });
+    _imagesCache = res.ok ? await res.json() : [];
+  } catch { _imagesCache = []; }
+  return _imagesCache;
+}
+
+async function toggleImgPicker(gridId) {
+  const grid = document.getElementById(gridId);
+  const isOpen = grid.classList.contains('open');
+  if (isOpen) { grid.classList.remove('open'); return; }
+  grid.classList.add('open');
+  if (grid.dataset.loaded) return;
+  grid.dataset.loaded = '1';
+  const images = await loadAdminImages();
+  if (!images.length) {
+    grid.innerHTML = '<div class="img-picker-empty">No images found in /images/ folder yet.</div>';
+    return;
+  }
+  const isTextarea = gridId === 'pm-images-picker';
+  grid.innerHTML = images.map(img => `
+    <div class="img-thumb" onclick="pickImage('${img.url}','${gridId}')">
+      <img src="${img.url}" alt="${img.name}" loading="lazy"/>
+    </div>`).join('');
+}
+
+function pickImage(url, gridId) {
+  const isTextarea = gridId === 'pm-images-picker';
+  if (isTextarea) {
+    const ta = document.getElementById('pm-images');
+    const lines = ta.value.trim() ? ta.value.trim().split('\n') : [];
+    if (!lines.includes(url)) { lines.push(url); ta.value = lines.join('\n'); }
+  } else {
+    document.getElementById('pm-image').value = url;
+  }
+  document.getElementById(gridId).querySelectorAll('.img-thumb').forEach(t => t.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+function getAdminCreds() {
+  return { email: adminEmail, password: adminPassword };
+}
+
 function openProductModal(productId) {
   const modal = document.getElementById('product-modal');
   if (productId) {
@@ -634,6 +699,14 @@ function openProductModal(productId) {
       document.getElementById(id).value = '';
     });
   }
+  // Reset image pickers so they reload
+  ['pm-image-picker','pm-images-picker'].forEach(id => {
+    const g = document.getElementById(id);
+    g.classList.remove('open');
+    delete g.dataset.loaded;
+    g.innerHTML = '';
+  });
+  _imagesCache = null;
   modal.classList.add('open');
 }
 

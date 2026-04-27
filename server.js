@@ -835,6 +835,16 @@ app.patch('/admin/stock', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Admin: images directory ──────────────────────────────────────
+
+app.get('/admin/images', requireAdmin, (req, res) => {
+  const fs = require('fs');
+  const imgDir = path.join(__dirname, 'images');
+  if (!fs.existsSync(imgDir)) return res.json([]);
+  const files = fs.readdirSync(imgDir).filter(f => /\.(png|jpe?g|gif|webp|svg)$/i.test(f));
+  res.json(files.map(f => ({ name: f, url: `/images/${f}` })));
+});
+
 // ── Start ────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {

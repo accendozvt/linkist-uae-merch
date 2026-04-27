@@ -84,6 +84,7 @@ function showToast(msg, success = true) {
 
 // ── LOGO SVG ─────────────────────────────────────────────────
 const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 6 22C10 18 14 16 22 5Z" fill="#E53935"/><path d="M22 5C22 5 20 14 12 22C16 22 20 18 22 5Z" fill="#B71C1C"/></svg>`;
+const LOGO_IMG = `<img src="/images/logo.png" alt="Linkist" style="height:28px;width:auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${LOGO_SVG}</span>`;
 
 // ── NAV HTML ──────────────────────────────────────────────────
 function renderNav(activePage) {
@@ -95,9 +96,9 @@ function renderNav(activePage) {
     : `<a href="account-login.html" class="nav-link">Login</a>`;
 
   return `<nav>
-    <a href="index.html" class="nav-logo">${LOGO_SVG} Linkist</a>
+    <a href="index.html" class="nav-logo">${LOGO_IMG} Linkist</a>
     <div class="nav-right">
-      <a href="index.html" class="nav-link ${activePage==='home'?'active':''}">Collection</a>
+      <a href="collection.html" class="nav-link nav-collection-link ${activePage==='collection'?'active':''}">Collection</a>
       ${authHtml}
       <a href="cart.html" class="cart-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
