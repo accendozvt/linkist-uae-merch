@@ -9,9 +9,12 @@
 .collection-page { max-width:1200px; margin:0 auto; padding:100px 64px 100px; }
 .collection-header { border-bottom:1px solid #1a1a1a; padding-bottom:32px; margin-bottom:48px; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
 .collection-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,72px); line-height:1; }
-.collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.05em; text-align:right; line-height:1.8; }
+.collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; line-height:1.8; }
 .collection-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-.loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#444; font-family:'Space Mono',monospace; font-size:13px; }
+.loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#888; font-family:'Space Mono',monospace; font-size:13px; }
+.pcard-soldout { opacity:0.6; }
+.pcard-soldout:hover { transform:none; }
+.pcard-stock-warn { position:absolute; bottom:8px; left:8px; z-index:1; background:rgba(200,16,46,0.85); color:#fff; font-family:'Space Mono',monospace; font-size:9px; padding:3px 8px; border-radius:3px; letter-spacing:0.08em; }
 @media(max-width:960px) { .collection-grid{grid-template-columns:repeat(3,1fr)} .collection-page{padding:80px 40px 80px} }
 @media(max-width:640px) { .collection-grid{grid-template-columns:1fr 1fr;gap:10px} .collection-page{padding:80px 20px 60px} .collection-header{flex-direction:column;align-items:flex-start} .collection-meta{text-align:left} }
 @media(max-width:400px) { .collection-grid{grid-template-columns:1fr} }
@@ -39,11 +42,16 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 function renderProductCard(p) {
   const image = p.image_url || p.image || '';
   const page = p.page || `product.html?id=${p.id}`;
+  const stockVals = p.stock ? Object.values(p.stock) : [];
+  const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
+  const soldOut = totalStock !== null && totalStock === 0;
+  const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
   return `
-  <a href="${page}" class="pcard">
+  <a href="${page}" class="pcard${soldOut ? ' pcard-soldout' : ''}">
     <div class="pcard-img">
       <img src="${image}" alt="${p.name}" loading="lazy"/>
-      ${p.badge ? `<div class="pcard-badge">${p.badge}</div>` : ''}
+      ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+      ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
     </div>
     <div class="pcard-info">
       <div>
@@ -52,7 +60,7 @@ function renderProductCard(p) {
       </div>
       <div class="pcard-price">${p.price} <span>AED</span></div>
       <div class="pcard-cta">
-        View & Buy
+        ${soldOut ? 'Sold Out' : 'View & Buy'}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </div>

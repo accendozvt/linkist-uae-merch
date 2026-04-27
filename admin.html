@@ -615,8 +615,8 @@ async function loadProducts() {
             <button class="action-btn" onclick="openProductModal('${escHtml(p.id)}')">Edit</button>
             ${p.active
               ? `<button class="action-btn danger" onclick="deleteProduct('${p.id}')">Archive</button>`
-              : `<button class="action-btn" style="border-color:#007A3D;color:#007A3D;" onclick="restoreProduct('${p.id}')">Restore</button>`
-            }
+              : `<button class="action-btn" style="border-color:#007A3D;color:#007A3D;" onclick="restoreProduct('${p.id}')">Restore</button>`}
+            <button class="action-btn" style="border-color:#7a0000;color:#c62828;" onclick="hardDeleteProduct('${p.id}')">Delete</button>
           </div>
         </div>
       </div>
@@ -754,6 +754,14 @@ async function deleteProduct(id) {
 async function restoreProduct(id) {
   try {
     await api(`/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify({ active: true }) });
+    loadProducts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function hardDeleteProduct(id) {
+  if (!confirm(`PERMANENTLY delete "${id}"?\n\nThis removes it from the database entirely and cannot be undone.`)) return;
+  try {
+    await api(`/admin/products/${id}/permanent`, { method: 'DELETE' });
     loadProducts();
   } catch(e) { alert('Error: ' + e.message); }
 }

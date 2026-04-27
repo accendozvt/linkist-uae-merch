@@ -795,6 +795,18 @@ app.delete('/admin/products/:id', requireAdmin, async (req, res) => {
   }
 });
 
+app.delete('/admin/products/:id/permanent', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    await supabase.from('stock').delete().eq('product_id', req.params.id);
+    const { error } = await supabase.from('products').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/admin/stock', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.json([]);

@@ -6,8 +6,8 @@
   --border: #1e1e1e;
   --border2:#2a2a2a;
   --white:  #F5F5F5;
-  --muted:  #aaa;
-  --dim:    #666;
+  --muted:  #bbb;
+  --dim:    #888;
   --red:    #C8102E;
   --green:  #007A3D;
   --accent: #E53935;
@@ -80,8 +80,8 @@ footer {
 }
 .footer-logo svg { width:20px; height:20px; }
 .footer-tags { display:flex; gap:16px; }
-.footer-tag { font-family:'Space Mono',monospace; font-size:10px; color:var(--dim); letter-spacing:0.06em; }
-.footer-right { font-family:'Space Mono',monospace; font-size:10px; color:rgba(255,255,255,0.15); text-align:right; line-height:1.6; }
+.footer-tag { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:0.06em; }
+.footer-right { font-family:'Space Mono',monospace; font-size:10px; color:rgba(255,255,255,0.4); text-align:right; line-height:1.6; }
 
 /* ── TOAST ── */
 .toast {

@@ -67,14 +67,13 @@
 .hero-cta svg { animation:bounce 2s ease-in-out infinite; }
 @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
 .hero-hashtags {
-  position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
-  display:flex; gap:12px; z-index:2;
-  font-family:'Space Mono',monospace; font-size:10px; color:rgba(255,255,255,0.2);
+  position:absolute; bottom:24px; left:0; right:0;
+  display:flex; gap:12px; justify-content:center; z-index:2;
+  font-family:'Space Mono',monospace; font-size:10px; color:rgba(255,255,255,0.45);
   white-space:nowrap; letter-spacing:0.06em;
   animation:fadeup 0.8s ease forwards; opacity:0; animation-delay:0.9s;
-  text-align:center;
 }
-.hero-hashtags .sep { color:rgba(255,255,255,0.1); }
+.hero-hashtags .sep { color:rgba(255,255,255,0.2); }
 @keyframes fadeup { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
 /* CAUSE */
@@ -93,7 +92,7 @@
 .stat:nth-child(1)::before{background:#C8102E} .stat:nth-child(2)::before{background:#fff}
 .stat:nth-child(3)::before{background:#007A3D} .stat:nth-child(4)::before{background:#E53935}
 .stat-num { font-family:'Bebas Neue',sans-serif; font-size:38px; line-height:1; margin-bottom:4px; color:#F5F5F5; display:block; }
-.stat-lbl { font-size:11px; font-weight:300; color:#555; line-height:1.4; }
+.stat-lbl { font-size:11px; font-weight:300; color:#999; line-height:1.4; }
 
 /* COLLECTION */
 .collection { padding:0 64px 100px; max-width:1200px; margin:0 auto; }
@@ -102,7 +101,7 @@
   border-top:1px solid #1a1a1a; padding-top:48px; margin-bottom:32px; gap:24px;
 }
 .section-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(32px,4.5vw,56px); line-height:1; }
-.section-note { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.05em; text-align:right; max-width:180px; line-height:1.6; }
+.section-note { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; max-width:180px; line-height:1.6; }
 .products-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 
 /* PRODUCT CARD */
@@ -122,9 +121,9 @@
 }
 .pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
 .pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
-.pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#444; letter-spacing:0.06em; }
+.pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
 .pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; }
-.pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#555; }
+.pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
 .pcard-cta {
   display:flex; align-items:center; justify-content:center; gap:6px;
   background:rgba(255,255,255,0.06); border-radius:6px; padding:9px;
@@ -132,6 +131,14 @@
   transition:background 0.2s;
 }
 .pcard:hover .pcard-cta { background:rgba(255,255,255,0.12); }
+.pcard-soldout { opacity:0.6; pointer-events:auto; }
+.pcard-soldout:hover { transform:none; }
+.pcard-stock-warn {
+  position:absolute; bottom:8px; left:8px; z-index:1;
+  background:rgba(200,16,46,0.85); color:#fff;
+  font-family:'Space Mono',monospace; font-size:9px;
+  padding:3px 8px; border-radius:3px; letter-spacing:0.08em;
+}
 
 @media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px} .collection{padding:0 40px 80px} }
 @media(max-width:640px) {
@@ -223,11 +230,16 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 function renderProductCard(p) {
   const image = p.image_url || p.image || '';
   const page = p.page || `product.html?id=${p.id}`;
+  const stockVals = p.stock ? Object.values(p.stock) : [];
+  const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
+  const soldOut = totalStock !== null && totalStock === 0;
+  const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
   return `
-  <a href="${page}" class="pcard">
+  <a href="${page}" class="pcard${soldOut ? ' pcard-soldout' : ''}">
     <div class="pcard-img">
       <img src="${image}" alt="${p.name}" loading="lazy"/>
-      ${p.badge ? `<div class="pcard-badge">${p.badge}</div>` : ''}
+      ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+      ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
     </div>
     <div class="pcard-info">
       <div>
@@ -236,7 +248,7 @@ function renderProductCard(p) {
       </div>
       <div class="pcard-price">${p.price} <span>AED</span></div>
       <div class="pcard-cta">
-        View & Buy
+        ${soldOut ? 'Sold Out' : 'View & Buy'}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </div>
