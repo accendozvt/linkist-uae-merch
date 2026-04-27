@@ -219,17 +219,19 @@
 document.getElementById('nav-root').innerHTML = renderNav('home');
 document.getElementById('footer-root').innerHTML = renderFooter();
 
-const grid = document.getElementById('products-grid');
-grid.innerHTML = PRODUCTS.map(p => `
-  <a href="${p.page}" class="pcard">
+function renderProductCard(p) {
+  const image = p.image_url || p.image || '';
+  const page = p.page || `${p.id}-edition.html`;
+  return `
+  <a href="${page}" class="pcard">
     <div class="pcard-img">
-      <img src="${p.image}" alt="${p.name}" loading="lazy"/>
+      <img src="${image}" alt="${p.name}" loading="lazy"/>
       ${p.badge ? `<div class="pcard-badge">${p.badge}</div>` : ''}
     </div>
     <div class="pcard-info">
       <div>
         <div class="pcard-name">${p.name}</div>
-        <div class="pcard-tag">${p.tag}</div>
+        <div class="pcard-tag">${p.tag || ''}</div>
       </div>
       <div class="pcard-price">${p.price} <span>AED</span></div>
       <div class="pcard-cta">
@@ -237,8 +239,21 @@ grid.innerHTML = PRODUCTS.map(p => `
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </div>
     </div>
-  </a>
-`).join('');
+  </a>`;
+}
+
+const grid = document.getElementById('products-grid');
+
+// Load from API first, fall back to hardcoded PRODUCTS
+fetch('/products')
+  .then(r => r.json())
+  .then(products => {
+    const list = products.length ? products : PRODUCTS;
+    grid.innerHTML = list.map(renderProductCard).join('');
+  })
+  .catch(() => {
+    grid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+  });
 </script>
 </body>
 </html>

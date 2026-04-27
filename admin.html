@@ -585,7 +585,10 @@ async function loadProducts() {
           <div class="product-admin-price">${p.price} <span style="font-family:'DM Sans',sans-serif;font-size:13px;color:#555;">AED</span></div>
           <div class="product-admin-actions">
             <button class="action-btn" onclick="openProductModal(${JSON.stringify(JSON.stringify(p))})">Edit</button>
-            <button class="action-btn danger" onclick="deleteProduct('${p.id}')">Archive</button>
+            ${p.active
+              ? `<button class="action-btn danger" onclick="deleteProduct('${p.id}')">Archive</button>`
+              : `<button class="action-btn" style="border-color:#007A3D;color:#007A3D;" onclick="restoreProduct('${p.id}')">Restore</button>`
+            }
           </div>
         </div>
       </div>
@@ -652,6 +655,13 @@ async function deleteProduct(id) {
   if (!confirm('Archive this product? It will be hidden from the store.')) return;
   try {
     await api(`/admin/products/${id}`, { method: 'DELETE' });
+    loadProducts();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function restoreProduct(id) {
+  try {
+    await api(`/admin/products/${id}`, { method: 'PATCH', body: JSON.stringify({ active: true }) });
     loadProducts();
   } catch(e) { alert('Error: ' + e.message); }
 }

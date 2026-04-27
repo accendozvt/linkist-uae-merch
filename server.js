@@ -87,7 +87,15 @@ app.post('/create-checkout', async (req, res) => {
       }
     }
 
-    const PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
+    // Load prices from DB (falls back to hardcoded for the 4 original products)
+    const FALLBACK_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
+    let dbPrices = {};
+    if (supabase) {
+      const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
+      if (dbProducts) dbProducts.forEach(p => { dbPrices[p.id] = p.price; });
+    }
+    const PRICES = { ...FALLBACK_PRICES, ...dbPrices };
+
     const line_items = items.map(item => {
       const serverPrice = PRICES[item.id];
       if (!serverPrice) throw new Error(`Unknown product: ${item.id}`);
@@ -751,6 +759,13 @@ app.post('/admin/products', requireAdmin, async (req, res) => {
       id, name, tag, tagline, price, badge, page, image, description, details, active: active !== false
     }).select().single();
     if (error) throw error;
+
+    // Auto-create stock rows (0 qty) for all sizes
+    const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    await supabase.from('stock').insert(
+      SIZES.map(size => ({ product_id: id, size, quantity: 0 }))
+    );
+
     res.status(201).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
