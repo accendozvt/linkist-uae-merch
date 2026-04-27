@@ -1,45 +1,93 @@
-// server.js — Linkist UAE Merch · Stripe Checkout
-// ─────────────────────────────────────────────
-// Setup:
-//   npm install
-//   Set your Stripe key: export STRIPE_SECRET_KEY=sk_test_...
-//   Run: node server.js
-//   Visit: http://localhost:3000
-// ─────────────────────────────────────────────
+// server.js — Linkist UAE Merch · Full-stack with Supabase, Resend, PDFKit, Auth
+const express = require('express');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { createClient } = require('@supabase/supabase-js');
+const { Resend } = require('resend');
+const PDFDocument = require('pdfkit');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const path = require('path');
 
-const express  = require('express');
-const stripe   = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const path     = require('path');
-
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ── Middleware ──────────────────────────────
+const supabase = process.env.SUPABASE_URL
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// CRITICAL: webhook raw body MUST come before express.json()
+app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));  // serves all HTML/CSS/JS files
+app.use(express.static(path.join(__dirname)));
 
-// ── Product prices (server-side source of truth) ──
-const PRICES = {
-  circle:  149,
-  smile:   149,
-  stripe:  149,
-  stealth: 169,
-};
+// ── Middleware helpers ──────────────────────────────────────────
 
-// ── Create Stripe Checkout Session ─────────
+function requireAdmin(req, res, next) {
+  if (!process.env.ADMIN_PASSWORD || req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+function requireCustomer(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    req.customer = jwt.verify(auth.slice(7), process.env.JWT_SECRET || 'dev-secret');
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+function makeToken(customer) {
+  return jwt.sign(
+    { customerId: customer.id, email: customer.email, name: customer.name },
+    process.env.JWT_SECRET || 'dev-secret',
+    { expiresIn: '30d' }
+  );
+}
+
+// ── Products ────────────────────────────────────────────────────
+
+app.get('/products', async (req, res) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data: products } = await supabase.from('products').select('*').eq('active', true).order('created_at');
+    const { data: stock } = await supabase.from('stock').select('*');
+    const result = (products || []).map(p => ({
+      ...p,
+      stock: (stock || []).filter(s => s.product_id === p.id).reduce((acc, s) => { acc[s.size] = s.quantity; return acc; }, {})
+    }));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Checkout ────────────────────────────────────────────────────
+
 app.post('/create-checkout', async (req, res) => {
   try {
-    const { items } = req.body;
+    const { items, customerId } = req.body;
+    if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
 
-    if (!items || !items.length) {
-      return res.status(400).json({ error: 'Cart is empty' });
+    // Stock validation
+    if (supabase) {
+      for (const item of items) {
+        const { data: stockRow } = await supabase.from('stock')
+          .select('quantity').eq('product_id', item.id).eq('size', item.size).single();
+        if (!stockRow || stockRow.quantity < item.qty) {
+          return res.status(400).json({ error: `${item.name} (${item.size}) is out of stock or insufficient quantity` });
+        }
+      }
     }
 
-    // Build Stripe line items — use server-side prices, never trust client prices
+    const PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
     const line_items = items.map(item => {
       const serverPrice = PRICES[item.id];
       if (!serverPrice) throw new Error(`Unknown product: ${item.id}`);
-
       return {
         price_data: {
           currency: 'aed',
@@ -47,48 +95,720 @@ app.post('/create-checkout', async (req, res) => {
             name: `I Never Left — ${item.name}`,
             description: `Size: ${item.size} · Limited April 2026 Edition`,
             images: [item.image],
-            metadata: { product_id: item.id, size: item.size }
           },
-          unit_amount: serverPrice * 100,  // Stripe uses smallest currency unit (fils)
+          unit_amount: serverPrice * 100,
         },
         quantity: item.qty,
       };
     });
 
+    const origin = req.headers.origin || `http://localhost:${PORT}`;
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
       currency: 'aed',
-      success_url: `${req.headers.origin || 'http://localhost:' + PORT}/success.html`,
-      cancel_url:  `${req.headers.origin || 'http://localhost:' + PORT}/cart.html`,
+      success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/cart.html`,
       billing_address_collection: 'required',
       shipping_address_collection: {
         allowed_countries: ['AE', 'SA', 'KW', 'BH', 'QA', 'OM', 'IN', 'GB', 'US'],
       },
       metadata: {
+        items: JSON.stringify(items.map(i => ({
+          id: i.id, name: i.name, size: i.size, qty: i.qty,
+          price: PRICES[i.id], image: i.image
+        }))),
+        customer_id: customerId || '',
         order_source: 'linkist-uae-merch',
-        item_count: items.reduce((s, i) => s + i.qty, 0).toString()
       }
     });
 
     res.json({ url: session.url });
-
   } catch (err) {
-    console.error('Stripe error:', err.message);
+    console.error('Checkout error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Start ───────────────────────────────────
+// ── Webhook ─────────────────────────────────────────────────────
+
+app.post('/webhook', async (req, res) => {
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      req.headers['stripe-signature'],
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    try {
+      const items = JSON.parse(session.metadata?.items || '[]');
+      const customerId = session.metadata?.customer_id || null;
+
+      const orderData = {
+        stripe_session_id: session.id,
+        status: 'processing',
+        total_amount: session.amount_total,
+        currency: 'aed',
+        customer_name: session.shipping_details?.name || session.customer_details?.name || '',
+        customer_email: session.customer_details?.email || '',
+        customer_id: customerId || null,
+        shipping_address: session.shipping_details?.address || null,
+      };
+
+      if (supabase) {
+        const { data: order, error: orderErr } = await supabase
+          .from('orders').insert(orderData).select().single();
+
+        if (orderErr) throw orderErr;
+
+        if (items.length) {
+          await supabase.from('order_items').insert(
+            items.map(item => ({
+              order_id: order.id,
+              product_id: item.id,
+              product_name: item.name,
+              size: item.size,
+              quantity: item.qty,
+              unit_price: item.price,
+            }))
+          );
+
+          // Deduct stock
+          for (const item of items) {
+            await supabase.rpc('decrement_stock', { p_product_id: item.id, p_size: item.size, p_qty: item.qty })
+              .catch(() => {
+                // Fallback if RPC not available
+                return supabase.from('stock')
+                  .select('quantity').eq('product_id', item.id).eq('size', item.size).single()
+                  .then(({ data }) => {
+                    if (data) {
+                      return supabase.from('stock')
+                        .update({ quantity: Math.max(0, data.quantity - item.qty), updated_at: new Date().toISOString() })
+                        .eq('product_id', item.id).eq('size', item.size);
+                    }
+                  });
+              });
+          }
+        }
+
+        // Send emails
+        const orderWithItems = { ...order, items };
+        await sendBuyerEmail(orderWithItems).catch(e => console.error('Buyer email failed:', e.message));
+        await sendSellerEmail(orderWithItems).catch(e => console.error('Seller email failed:', e.message));
+      }
+    } catch (err) {
+      console.error('Webhook processing error:', err.message);
+    }
+  }
+
+  res.json({ received: true });
+});
+
+// ── Email helpers ───────────────────────────────────────────────
+
+function buyerEmailHtml(order, items) {
+  const itemRows = items.map(item => `
+    <tr>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;">${item.product_name || item.name}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;text-align:center;">${item.size}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;text-align:center;">×${item.quantity || item.qty}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#fff;text-align:right;font-weight:bold;">AED ${(item.unit_price || item.price) * (item.quantity || item.qty)}</td>
+    </tr>`).join('');
+
+  const addr = order.shipping_address;
+  const addrText = addr ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).join(', ') : '';
+  const total = Math.round((order.total_amount || 0) / 100);
+  const orderId = (order.id || '').slice(0, 8).toUpperCase();
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <!-- UAE Flag Bar -->
+  <div style="display:flex;height:6px;">
+    <div style="flex:1;background:#C8102E;"></div>
+    <div style="flex:1;background:#ffffff;"></div>
+    <div style="flex:1;background:#111111;"></div>
+    <div style="flex:1;background:#007A3D;"></div>
+  </div>
+  <!-- Header -->
+  <div style="padding:40px 40px 30px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:2px;">LINKIST</div>
+    <div style="font-size:12px;color:#666;letter-spacing:3px;margin-top:4px;">I NEVER LEFT · UAE</div>
+  </div>
+  <!-- Success icon -->
+  <div style="text-align:center;padding:32px 40px 0;">
+    <div style="width:60px;height:60px;border-radius:50%;background:rgba(0,122,61,0.15);border:1px solid rgba(0,122,61,0.4);display:inline-flex;align-items:center;justify-content:center;">
+      <span style="font-size:28px;">✓</span>
+    </div>
+    <h1 style="color:#fff;font-size:28px;margin:16px 0 8px;">Order Confirmed!</h1>
+    <p style="color:#888;font-size:14px;margin:0;">Thank you for standing with the UAE</p>
+    <div style="font-family:monospace;font-size:12px;color:#555;margin-top:12px;">ORDER #${orderId}</div>
+  </div>
+  <!-- Items -->
+  <div style="padding:32px 40px;">
+    <div style="font-size:11px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:12px;">Your Order</div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid #222;">
+          <th style="padding:8px;text-align:left;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">ITEM</th>
+          <th style="padding:8px;text-align:center;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">SIZE</th>
+          <th style="padding:8px;text-align:center;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">QTY</th>
+          <th style="padding:8px;text-align:right;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">AMOUNT</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+    <div style="border-top:1px solid #C8102E;margin-top:16px;padding-top:16px;display:flex;justify-content:space-between;">
+      <span style="color:#888;font-size:14px;">Total</span>
+      <span style="color:#fff;font-size:20px;font-weight:bold;">AED ${total}</span>
+    </div>
+  </div>
+  ${addrText ? `<div style="padding:0 40px 32px;">
+    <div style="font-size:11px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:10px;">Shipping To</div>
+    <div style="color:#ccc;font-size:13px;line-height:1.6;">${order.customer_name}<br>${addrText}</div>
+  </div>` : ''}
+  <!-- Message -->
+  <div style="margin:0 40px;padding:24px;background:#111;border-radius:8px;border-left:3px solid #007A3D;">
+    <p style="color:#ccc;font-size:14px;line-height:1.7;margin:0;font-style:italic;">"I Never Left is not just a shirt. It's a statement of where we stand — and where we always will."</p>
+    <div style="font-size:11px;color:#555;margin-top:8px;">— Linkist Team, UAE</div>
+  </div>
+  <!-- Footer -->
+  <div style="padding:32px 40px;text-align:center;border-top:1px solid #1e1e1e;margin-top:32px;">
+    <div style="font-size:12px;color:#444;line-height:1.8;">
+      <a href="https://linkist.ai" style="color:#888;text-decoration:none;">linkist.ai</a>
+      &nbsp;·&nbsp; #istandwithUAE &nbsp;·&nbsp; #borninUAE
+    </div>
+    <div style="font-size:10px;color:#333;margin-top:8px;">100% of proceeds go to UAE community relief</div>
+  </div>
+  <!-- UAE Flag Bar bottom -->
+  <div style="display:flex;height:4px;">
+    <div style="flex:1;background:#007A3D;"></div>
+    <div style="flex:1;background:#111111;"></div>
+    <div style="flex:1;background:#ffffff;"></div>
+    <div style="flex:1;background:#C8102E;"></div>
+  </div>
+</div></body></html>`;
+}
+
+async function sendBuyerEmail(order) {
+  if (!resend || !order.customer_email) return;
+  const items = order.items || [];
+  const pdfBuffer = await generateInvoiceBuffer(order, items.map(i => ({
+    product_name: i.product_name || i.name,
+    size: i.size,
+    quantity: i.quantity || i.qty,
+    unit_price: i.unit_price || i.price
+  })));
+  const orderId = (order.id || '').slice(0, 8).toUpperCase();
+  await resend.emails.send({
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: order.customer_email,
+    subject: `Order Confirmed — I Never Left #${orderId}`,
+    html: buyerEmailHtml(order, items),
+    attachments: [{
+      filename: `invoice-${orderId}.pdf`,
+      content: pdfBuffer.toString('base64'),
+    }]
+  });
+}
+
+async function sendSellerEmail(order) {
+  if (!resend || !process.env.SELLER_EMAIL) return;
+  const items = order.items || [];
+  const total = Math.round((order.total_amount || 0) / 100);
+  const orderId = (order.id || '').slice(0, 8).toUpperCase();
+  await resend.emails.send({
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: process.env.SELLER_EMAIL,
+    subject: `New Order — AED ${total} — ${order.customer_name || 'Customer'}`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;background:#0a0a0a;color:#fff;padding:32px;border-radius:8px;">
+      <h2 style="color:#fff;margin-top:0;">New Order Alert</h2>
+      <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
+        <p style="color:#888;margin:0 0 4px;font-size:12px;">ORDER ID</p>
+        <p style="color:#fff;margin:0;font-family:monospace;">#${orderId}</p>
+      </div>
+      <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
+        <p style="color:#888;margin:0 0 4px;font-size:12px;">CUSTOMER</p>
+        <p style="color:#fff;margin:0;">${order.customer_name || 'N/A'}</p>
+        <p style="color:#888;margin:4px 0 0;font-size:13px;">${order.customer_email || ''}</p>
+      </div>
+      <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
+        <p style="color:#888;margin:0 0 8px;font-size:12px;">ITEMS</p>
+        ${items.map(i => `<p style="color:#ccc;margin:0 0 4px;font-size:13px;">• ${i.product_name || i.name} — ${i.size} × ${i.quantity || i.qty}</p>`).join('')}
+      </div>
+      <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
+        <p style="color:#888;margin:0 0 4px;font-size:12px;">TOTAL</p>
+        <p style="color:#fff;font-size:24px;margin:0;font-weight:bold;">AED ${total}</p>
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px;">
+        <a href="https://dashboard.stripe.com/payments" style="background:#635BFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;">Stripe Dashboard</a>
+        <a href="${process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace('.supabase.co', '.supabase.co/project/default') : 'https://app.supabase.com'}" style="background:#3ECF8E;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;">Supabase Dashboard</a>
+      </div>
+    </div>`
+  });
+}
+
+async function sendShippingEmail(order, items, trackingNumber) {
+  if (!resend || !order.customer_email) return;
+  const orderId = (order.id || '').slice(0, 8).toUpperCase();
+  await resend.emails.send({
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: order.customer_email,
+    reply_to: process.env.SELLER_EMAIL,
+    subject: `Your order has shipped! — Linkist UAE`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:0;">
+      <div style="height:6px;background:linear-gradient(90deg,#C8102E 25%,#fff 25%,#fff 50%,#111 50%,#111 75%,#007A3D 75%);"></div>
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:24px;font-weight:900;letter-spacing:2px;">LINKIST</div>
+        <div style="font-size:48px;margin:16px 0;">🚀</div>
+        <h1 style="color:#fff;font-size:24px;">Your order is on its way!</h1>
+        <p style="color:#888;font-size:13px;">Order #${orderId}</p>
+        ${trackingNumber ? `<div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin:24px 0;"><p style="color:#888;margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Tracking Number</p><p style="color:#fff;font-family:monospace;font-size:16px;margin:0;">${trackingNumber}</p></div>` : ''}
+        <div style="margin-top:24px;">
+          ${(items || []).map(i => `<p style="color:#ccc;font-size:13px;">${i.product_name} — ${i.size} × ${i.quantity}</p>`).join('')}
+        </div>
+        <p style="color:#555;font-size:12px;margin-top:32px;">#istandwithUAE · linkist.ai</p>
+      </div>
+    </div>`
+  });
+}
+
+async function sendDeliveredEmail(order, items) {
+  if (!resend || !order.customer_email) return;
+  const orderId = (order.id || '').slice(0, 8).toUpperCase();
+  await resend.emails.send({
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: order.customer_email,
+    subject: `Your order has arrived! — Linkist UAE`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:0;">
+      <div style="height:6px;background:linear-gradient(90deg,#C8102E 25%,#fff 25%,#fff 50%,#111 50%,#111 75%,#007A3D 75%);"></div>
+      <div style="padding:40px;text-align:center;">
+        <div style="font-size:24px;font-weight:900;letter-spacing:2px;">LINKIST</div>
+        <div style="font-size:48px;margin:16px 0;">📦</div>
+        <h1 style="color:#fff;font-size:24px;">Your order has arrived!</h1>
+        <p style="color:#888;font-size:14px;line-height:1.7;">Order #${orderId}<br>Thank you for standing with the UAE.</p>
+        <p style="color:#007A3D;font-size:16px;font-style:italic;margin-top:20px;">"I Never Left."</p>
+        <p style="color:#555;font-size:12px;margin-top:32px;">#istandwithUAE · #borninUAE · linkist.ai</p>
+      </div>
+    </div>`
+  });
+}
+
+// ── Invoice PDF ─────────────────────────────────────────────────
+
+async function generateInvoiceBuffer(order, items) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    // Top flag bar
+    doc.rect(0, 0, 595, 5).fill('#C8102E');
+    doc.rect(0, 5, 595, 5).fill('#007A3D');
+
+    // Logo
+    doc.fontSize(26).font('Helvetica-Bold').fillColor('#000000').text('LINKIST', 50, 30);
+    doc.fontSize(9).font('Helvetica').fillColor('#666666').text('I Never Left · UAE · linkist.ai', 50, 60);
+
+    // Invoice label
+    doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('INVOICE', 400, 30, { align: 'right', width: 145 });
+    doc.fontSize(10).font('Helvetica').fillColor('#555555').text(`#${(order.id || '').slice(0,8).toUpperCase()}`, 400, 57, { align: 'right', width: 145 });
+    doc.text(`Date: ${new Date(order.created_at || Date.now()).toLocaleDateString('en-GB')}`, 400, 71, { align: 'right', width: 145 });
+
+    // Divider
+    doc.moveTo(50, 95).lineTo(545, 95).lineWidth(1.5).stroke('#C8102E');
+
+    // Bill to
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, 110);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, 123);
+    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, 138);
+    if (order.shipping_address) {
+      const addr = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
+      const lines = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
+      doc.text(lines.join(', '), 50, 152, { width: 250 });
+    }
+
+    // Items table
+    const tY = 215;
+    doc.rect(50, tY, 495, 22).fill('#f0f0f0');
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
+    doc.text('ITEM', 60, tY + 7);
+    doc.text('SIZE', 290, tY + 7);
+    doc.text('QTY', 350, tY + 7);
+    doc.text('UNIT', 400, tY + 7);
+    doc.text('SUBTOTAL', 470, tY + 7);
+
+    let rowY = tY + 30;
+    items.forEach((item, i) => {
+      if (i % 2 === 0) doc.rect(50, rowY - 5, 495, 22).fill('#fafafa');
+      doc.fontSize(10).font('Helvetica').fillColor('#000000').text(item.product_name || '', 60, rowY, { width: 220 });
+      doc.text(item.size || '', 290, rowY);
+      doc.text(String(item.quantity), 350, rowY);
+      doc.text(`AED ${item.unit_price}`, 400, rowY);
+      doc.text(`AED ${(item.unit_price || 0) * (item.quantity || 0)}`, 470, rowY);
+      rowY += 26;
+    });
+
+    // Total line
+    rowY += 6;
+    doc.moveTo(50, rowY).lineTo(545, rowY).lineWidth(2).stroke('#C8102E');
+    rowY += 12;
+    doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text('TOTAL', 390, rowY);
+    doc.text(`AED ${Math.round((order.total_amount || 0) / 100)}`, 460, rowY);
+
+    // Footer
+    doc.moveTo(50, 745).lineTo(545, 745).lineWidth(0.5).stroke('#cccccc');
+    doc.fontSize(8).font('Helvetica').fillColor('#999999')
+      .text('100% of proceeds go to UAE community relief · Thank you for standing with the UAE', 50, 755, { align: 'center', width: 495 })
+      .text('linkist.ai  ·  #istandwithUAE  ·  #borninUAE', 50, 768, { align: 'center', width: 495 });
+
+    // Bottom flag bar
+    doc.rect(0, 828, 595, 5).fill('#007A3D');
+    doc.rect(0, 833, 595, 4).fill('#C8102E');
+
+    doc.end();
+  });
+}
+
+// ── Invoice download ────────────────────────────────────────────
+
+app.get('/invoice/:orderId', async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data: order } = await supabase.from('orders').select('*').eq('id', req.params.orderId).single();
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+    const pdfBuffer = await generateInvoiceBuffer(order, items || []);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.id.slice(0,8)}.pdf`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Orders by session ───────────────────────────────────────────
+
+app.get('/orders/by-session/:sessionId', async (req, res) => {
+  try {
+    if (!supabase) return res.json({});
+    const { data } = await supabase.from('orders').select('id, status, total_amount, customer_id').eq('stripe_session_id', req.params.sessionId).single();
+    res.json(data || {});
+  } catch {
+    res.json({});
+  }
+});
+
+// ── Customer auth ───────────────────────────────────────────────
+
+app.post('/customer/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    // Check email unique
+    const { data: existing } = await supabase.from('customers').select('id').eq('email', email.toLowerCase()).single();
+    if (existing) return res.status(409).json({ error: 'Email already registered' });
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const { data: customer, error } = await supabase.from('customers').insert({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password_hash,
+    }).select('id, name, email, created_at').single();
+
+    if (error) throw error;
+
+    const token = makeToken(customer);
+    res.status(201).json({ token, customer: { id: customer.id, name: customer.name, email: customer.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/customer/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const { data: customer } = await supabase.from('customers').select('*').eq('email', email.toLowerCase()).single();
+    if (!customer) return res.status(401).json({ error: 'Invalid email or password' });
+
+    const valid = await bcrypt.compare(password, customer.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+
+    await supabase.from('customers').update({ last_login: new Date().toISOString() }).eq('id', customer.id);
+
+    const token = makeToken(customer);
+    res.json({ token, customer: { id: customer.id, name: customer.name, email: customer.email } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/customer/me', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data: customer } = await supabase.from('customers')
+      .select('id, name, email, created_at, last_login')
+      .eq('id', req.customer.customerId).single();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    res.json(customer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/customer/orders', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data: orders } = await supabase.from('orders')
+      .select('*')
+      .eq('customer_id', req.customer.customerId)
+      .order('created_at', { ascending: false });
+
+    if (!orders || orders.length === 0) return res.json([]);
+
+    const orderIds = orders.map(o => o.id);
+    const { data: allItems } = await supabase.from('order_items').select('*').in('order_id', orderIds);
+
+    const result = orders.map(o => ({
+      ...o,
+      items: (allItems || []).filter(i => i.order_id === o.id)
+    }));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/customer/me', requireCustomer, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const { data: customer, error } = await supabase.from('customers')
+      .update({ name: name.trim(), updated_at: new Date().toISOString() })
+      .eq('id', req.customer.customerId)
+      .select('id, name, email').single();
+
+    if (error) throw error;
+    const token = makeToken(customer);
+    res.json({ token, customer });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/customer/password', requireCustomer, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both current and new password are required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const { data: customer } = await supabase.from('customers').select('*').eq('id', req.customer.customerId).single();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    const valid = await bcrypt.compare(currentPassword, customer.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    const password_hash = await bcrypt.hash(newPassword, 12);
+    const { error } = await supabase.from('customers')
+      .update({ password_hash, updated_at: new Date().toISOString() })
+      .eq('id', req.customer.customerId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin routes ────────────────────────────────────────────────
+
+app.get('/admin/stats', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.json({ total_orders: 0, total_revenue: 0, pending_orders: 0, total_customers: 0 });
+
+    const { data: orders } = await supabase.from('orders').select('status, total_amount');
+    const { data: customers } = await supabase.from('customers').select('id');
+
+    const total_orders = orders?.length || 0;
+    const total_revenue = (orders || []).reduce((s, o) => s + (o.total_amount || 0), 0);
+    const pending_orders = (orders || []).filter(o => o.status === 'processing').length;
+    const total_customers = customers?.length || 0;
+
+    res.json({ total_orders, total_revenue, pending_orders, total_customers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/orders', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.json({ orders: [], total: 0 });
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const status = req.query.status;
+    const search = req.query.search;
+    const offset = (page - 1) * limit;
+
+    let query = supabase.from('orders').select('*', { count: 'exact' });
+    if (status) query = query.eq('status', status);
+    if (search) query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%`);
+    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+    const { data: orders, count, error } = await query;
+    if (error) throw error;
+
+    // Fetch items for these orders
+    const orderIds = (orders || []).map(o => o.id);
+    const { data: allItems } = orderIds.length
+      ? await supabase.from('order_items').select('*').in('order_id', orderIds)
+      : { data: [] };
+
+    const result = (orders || []).map(o => ({
+      ...o,
+      items: (allItems || []).filter(i => i.order_id === o.id)
+    }));
+
+    res.json({ orders: result, total: count || 0, page, limit });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/admin/orders/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { status, trackingNumber } = req.body;
+    const validStatuses = ['processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const updateData = { status, updated_at: new Date().toISOString() };
+    if (trackingNumber) updateData.tracking_number = trackingNumber;
+
+    const { data: order, error } = await supabase.from('orders')
+      .update(updateData)
+      .eq('id', req.params.id)
+      .select('*').single();
+
+    if (error) throw error;
+
+    // Fetch order items for email
+    const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+
+    // Send appropriate email
+    if (status === 'shipped') {
+      await sendShippingEmail(order, items || [], trackingNumber).catch(e => console.error('Shipping email failed:', e.message));
+    } else if (status === 'delivered') {
+      await sendDeliveredEmail(order, items || []).catch(e => console.error('Delivered email failed:', e.message));
+    }
+
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/products', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data, error } = await supabase.from('products').select('*').order('created_at');
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/admin/products', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { name, tag, tagline, price, badge, page, image, description, details, active } = req.body;
+    if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+    const { data, error } = await supabase.from('products').insert({
+      name, tag, tagline, price, badge, page, image, description, details, active: active !== false
+    }).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const updates = { ...req.body, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from('products').update(updates).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/admin/products/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { error } = await supabase.from('products').update({ active: false, updated_at: new Date().toISOString() }).eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/stock', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data: stock, error } = await supabase.from('stock').select('*, products(name, id)').order('product_id');
+    if (error) throw error;
+    res.json(stock || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/admin/stock', requireAdmin, async (req, res) => {
+  try {
+    const { productId, size, quantity } = req.body;
+    if (!productId || !size || quantity === undefined) return res.status(400).json({ error: 'productId, size and quantity are required' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const { data, error } = await supabase.from('stock').upsert({
+      product_id: productId,
+      size,
+      quantity: Math.max(0, parseInt(quantity)),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'product_id,size' }).select().single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Start ────────────────────────────────────────────────────────
+
 app.listen(PORT, () => {
-  console.log(`
-  ┌─────────────────────────────────────┐
-  │   I Never Left — Linkist × UAE      │
-  │   Server running on port ${PORT}        │
-  │   http://localhost:${PORT}              │
-  │                                     │
-  │   Stripe key: ${process.env.STRIPE_SECRET_KEY ? '✓ Set' : '✗ NOT SET — export STRIPE_SECRET_KEY=sk_...'}  │
-  └─────────────────────────────────────┘
-  `);
+  console.log(`Linkist UAE Merch running on port ${PORT}`);
 });

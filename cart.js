@@ -1,4 +1,20 @@
-// ── CART MANAGER ──────────────────────────────────────────────
+// ── AUTH HELPERS ──────────────────────────────────────────────
+function getCustomer() {
+  try {
+    const token = localStorage.getItem('customer_token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.exp * 1000 < Date.now()) { localStorage.removeItem('customer_token'); return null; }
+    return payload;
+  } catch { return null; }
+}
+
+function logout() {
+  localStorage.removeItem('customer_token');
+  window.location.href = 'index.html';
+}
+
+// ── CART MANAGER ──────────────────────────────────────────────────────────────
 const Cart = {
   get() {
     try { return JSON.parse(localStorage.getItem('inl_cart') || '[]'); }
@@ -71,11 +87,18 @@ const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 
 
 // ── NAV HTML ──────────────────────────────────────────────────
 function renderNav(activePage) {
-  return `
-  <nav>
+  const customer = getCustomer();
+  const authHtml = customer
+    ? `<a href="account.html" class="nav-link" style="color:var(--white)">Hi ${customer.name ? customer.name.split(' ')[0] : 'You'}</a>
+       <a href="account.html" class="nav-link">My Orders</a>
+       <a href="#" class="nav-link" onclick="logout();return false;" style="color:var(--accent)">Logout</a>`
+    : `<a href="account-login.html" class="nav-link">Login</a>`;
+
+  return `<nav>
     <a href="index.html" class="nav-logo">${LOGO_SVG} Linkist</a>
     <div class="nav-right">
       <a href="index.html" class="nav-link ${activePage==='home'?'active':''}">Collection</a>
+      ${authHtml}
       <a href="cart.html" class="cart-btn">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
           <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -100,6 +123,34 @@ function renderFooter() {
     </div>
     <div class="footer-right">linkist.ai · April 2026<br>Limited Edition</div>
   </footer>`;
+}
+
+// ── STOCK LOADER ──────────────────────────────────────────────
+async function loadProductStock(productId, sizeGridEl) {
+  try {
+    const res = await fetch('/products');
+    const products = await res.json();
+    const product = products.find(p => p.id === productId);
+    if (!product?.stock) return;
+    const stock = product.stock;
+    sizeGridEl.querySelectorAll('.sz').forEach(btn => {
+      const size = btn.dataset.size;
+      const qty = stock[size] ?? 0;
+      if (qty === 0) {
+        btn.classList.add('sold-out');
+        btn.disabled = true;
+        btn.title = 'Sold Out';
+      } else if (qty < 5) {
+        btn.setAttribute('data-stock-warn', `Only ${qty} left`);
+      }
+    });
+    // Add tooltips for low stock
+    const style = document.createElement('style');
+    style.textContent = `.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;margin-bottom:4px;pointer-events:none;} .sz{position:relative;}`;
+    document.head.appendChild(style);
+  } catch (e) {
+    console.warn('Could not load stock:', e.message);
+  }
 }
 
 // ── PRODUCT CATALOGUE ─────────────────────────────────────────

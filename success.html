@@ -49,6 +49,45 @@
 <script>
 document.getElementById('nav-root').innerHTML = renderNav();
 Cart.clear();
+
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get('session_id');
+
+async function loadOrderDetails() {
+  if (!sessionId) return;
+  try {
+    const res = await fetch(`/orders/by-session/${sessionId}`);
+    const order = await res.json();
+    if (order?.id) {
+      const actionsEl = document.querySelector('.success-actions');
+      // Add invoice download button
+      const invoiceBtn = document.createElement('a');
+      invoiceBtn.href = `/invoice/${order.id}`;
+      invoiceBtn.className = 'btn-secondary';
+      invoiceBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Invoice`;
+      invoiceBtn.target = '_blank';
+      actionsEl.appendChild(invoiceBtn);
+
+      // Show order ID
+      const orderIdDiv = document.createElement('div');
+      orderIdDiv.style.cssText = 'font-family:monospace;font-size:12px;color:#555;margin-top:12px;';
+      orderIdDiv.textContent = `Order #${order.id.slice(0,8).toUpperCase()}`;
+      actionsEl.parentNode.insertBefore(orderIdDiv, actionsEl.nextSibling);
+    }
+  } catch(e) {}
+}
+
+// Show account creation prompt if not logged in
+const customer = getCustomer();
+if (!customer) {
+  const prompt = document.createElement('div');
+  prompt.style.cssText = 'margin-top:24px;padding:16px 24px;background:#111;border:1px solid #1e1e1e;border-radius:8px;text-align:center;';
+  prompt.innerHTML = `<p style="color:#888;font-size:13px;margin:0 0 10px;">Want to track your order?</p>
+    <a href="account-login.html" class="btn-secondary" style="font-size:12px;padding:10px 20px;">Create an Account →</a>`;
+  document.querySelector('.success-wrap').appendChild(prompt);
+}
+
+loadOrderDetails();
 </script>
 </body>
 </html>

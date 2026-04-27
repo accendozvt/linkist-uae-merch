@@ -170,6 +170,11 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   showToast(product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
 });
 
+// Load real stock from API
+if (typeof loadProductStock === 'function') {
+  loadProductStock(PRODUCT_ID, sizeGrid);
+}
+
 // Other products
 const others = PRODUCTS.filter(p => p.id !== PRODUCT_ID);
 document.getElementById('other-grid').innerHTML = others.map(p => `

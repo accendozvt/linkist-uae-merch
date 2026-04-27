@@ -5,10 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "STRIPE_SECRET_KEY=sk_test_YOUR_KEY_HERE node server.js"
+    "dev": "node server.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "bcryptjs": "^2",
     "express": "^4.18.2",
+    "jsonwebtoken": "^9",
+    "pdfkit": "^0.15",
+    "resend": "^4",
     "stripe": "^14.0.0"
   }
 }

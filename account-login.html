@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — I Never Left · Linkist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+}
+.auth-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+}
+.auth-logo {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.auth-logo-text {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--white);
+}
+.auth-logo-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #444;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.auth-tabs {
+  display: flex;
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 28px 0 32px;
+}
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #555;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.auth-tab.active {
+  background: var(--white);
+  color: var(--black);
+  font-weight: 700;
+}
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+.field {
+  margin-bottom: 18px;
+}
+.field label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #555;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.field input {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus { border-color: #555; }
+.field input.error { border-color: var(--accent); }
+.field-error {
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 5px;
+  display: none;
+}
+.auth-submit {
+  width: 100%;
+  margin-top: 8px;
+}
+.auth-error {
+  background: rgba(229, 57, 53, 0.1);
+  border: 1px solid rgba(229, 57, 53, 0.3);
+  border-radius: 8px;
+  color: #E53935;
+  font-size: 13px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: none;
+}
+.auth-success {
+  background: rgba(0, 122, 61, 0.1);
+  border: 1px solid rgba(0, 122, 61, 0.3);
+  border-radius: 8px;
+  color: #00c96a;
+  font-size: 13px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: none;
+}
+.auth-divider {
+  display: flex;
+  height: 2px;
+  border-radius: 1px;
+  overflow: hidden;
+  margin: 28px 0 0;
+}
+.auth-divider span { flex: 1; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-text">LINKIST</div>
+      <div class="auth-logo-sub">I Never Left · UAE</div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Login</button>
+      <button class="auth-tab" id="tab-register-btn" onclick="switchAuthTab('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-form active" id="form-login">
+      <div class="auth-error" id="login-error"></div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password"/>
+      </div>
+      <button class="btn-primary auth-submit" id="login-btn" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- Register Form -->
+    <div class="auth-form" id="form-register">
+      <div class="auth-error" id="register-error"></div>
+      <div class="auth-success" id="register-success"></div>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="Your name" autocomplete="name"/>
+        <div class="field-error" id="err-name">Please enter your name</div>
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email"/>
+        <div class="field-error" id="err-email">Please enter a valid email</div>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Min. 8 characters" autocomplete="new-password"/>
+        <div class="field-error" id="err-password">Password must be at least 8 characters</div>
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <input type="password" id="reg-confirm" placeholder="Repeat password" autocomplete="new-password"/>
+        <div class="field-error" id="err-confirm">Passwords do not match</div>
+      </div>
+      <button class="btn-primary auth-submit" id="register-btn" onclick="doRegister()">Create Account</button>
+    </div>
+
+    <div class="auth-divider">
+      <span style="background:#C8102E;"></span>
+      <span style="background:#fff;"></span>
+      <span style="background:#222;"></span>
+      <span style="background:#007A3D;"></span>
+    </div>
+  </div>
+</div>
+
+<script src="cart.js"></script>
+<script>
+// Redirect if already logged in
+const existing = getCustomer();
+if (existing) window.location.href = 'account.html';
+
+document.getElementById('nav-root').innerHTML = renderNav();
+
+// Check if we were sent here from a ?tab=register link
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('tab') === 'register') switchAuthTab('register');
+
+function switchAuthTab(tab) {
+  document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register-btn').classList.toggle('active', tab === 'register');
+  document.getElementById('form-login').classList.toggle('active', tab === 'login');
+  document.getElementById('form-register').classList.toggle('active', tab === 'register');
+}
+
+// Enter key support
+document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('reg-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.style.display = 'block'; return; }
+
+  btn.textContent = 'Signing in...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/customer/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    localStorage.setItem('customer_token', data.token);
+    window.location.href = 'account.html';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+  }
+}
+
+async function doRegister() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm = document.getElementById('reg-confirm').value;
+  const errEl = document.getElementById('register-error');
+  const successEl = document.getElementById('register-success');
+  const btn = document.getElementById('register-btn');
+
+  // Clear errors
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+  ['err-name','err-email','err-password','err-confirm'].forEach(id => document.getElementById(id).style.display = 'none');
+  ['reg-name','reg-email','reg-password','reg-confirm'].forEach(id => document.getElementById(id).classList.remove('error'));
+
+  let valid = true;
+  if (!name) { document.getElementById('err-name').style.display = 'block'; document.getElementById('reg-name').classList.add('error'); valid = false; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('err-email').style.display = 'block'; document.getElementById('reg-email').classList.add('error'); valid = false; }
+  if (password.length < 8) { document.getElementById('err-password').style.display = 'block'; document.getElementById('reg-password').classList.add('error'); valid = false; }
+  if (password !== confirm) { document.getElementById('err-confirm').style.display = 'block'; document.getElementById('reg-confirm').classList.add('error'); valid = false; }
+  if (!valid) return;
+
+  btn.textContent = 'Creating account...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/customer/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    localStorage.setItem('customer_token', data.token);
+    window.location.href = 'account.html';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Create Account';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

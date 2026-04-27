@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — I Never Left · Linkist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.account-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 100px 40px 80px;
+}
+.account-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.account-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(36px, 5vw, 56px);
+  line-height: 1;
+}
+.account-subtitle {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #444;
+  letter-spacing: 2px;
+  margin-top: 6px;
+}
+.account-tabs {
+  display: flex;
+  border-bottom: 1px solid #1e1e1e;
+  margin-bottom: 32px;
+  gap: 0;
+}
+.account-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #555;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 14px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.account-tab.active {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+.account-tab:hover:not(.active) { color: #888; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Orders */
+.order-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.order-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #1a1a1a;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.order-id {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--white);
+}
+.order-date {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #444;
+  letter-spacing: 1px;
+}
+.order-total {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+}
+.order-total span {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: #555;
+}
+.order-status-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.status-processing { background: rgba(200,161,0,0.15); color: #c8a100; border: 1px solid rgba(200,161,0,0.3); }
+.status-shipped { background: rgba(99,91,255,0.15); color: #a09aff; border: 1px solid rgba(99,91,255,0.3); }
+.status-delivered { background: rgba(0,122,61,0.15); color: #00c96a; border: 1px solid rgba(0,122,61,0.3); }
+.status-cancelled { background: rgba(229,57,53,0.15); color: #E53935; border: 1px solid rgba(229,57,53,0.3); }
+.status-refunded { background: rgba(100,100,100,0.15); color: #888; border: 1px solid rgba(100,100,100,0.3); }
+
+.order-card-items { padding: 16px 20px; }
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid #141414;
+}
+.order-item-row:last-child { border-bottom: none; }
+.order-item-img {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  background: #0d0d0d;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.order-item-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.order-item-name { font-size: 13px; font-weight: 600; }
+.order-item-meta { font-family: 'Space Mono', monospace; font-size: 10px; color: #555; margin-top: 3px; letter-spacing: 0.5px; }
+.order-item-price { margin-left: auto; font-family: 'Bebas Neue', sans-serif; font-size: 18px; }
+.order-card-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #141414;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Details form */
+.details-section {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.details-section-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #555;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+.field {
+  margin-bottom: 18px;
+}
+.field label {
+  display: block;
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #555;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.field input {
+  width: 100%;
+  background: #0a0a0a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field input:focus { border-color: #555; }
+.field input[readonly] { opacity: 0.5; cursor: not-allowed; }
+.form-row { display: flex; gap: 12px; }
+.form-row .field { flex: 1; }
+.form-message {
+  font-size: 12px;
+  margin-top: 8px;
+  display: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+.form-message.success { background: rgba(0,122,61,0.1); border: 1px solid rgba(0,122,61,0.3); color: #00c96a; display: block; }
+.form-message.error { background: rgba(229,57,53,0.1); border: 1px solid rgba(229,57,53,0.3); color: #E53935; display: block; }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  color: #444;
+}
+.empty-state h3 { font-family: 'Bebas Neue', sans-serif; font-size: 36px; margin-bottom: 8px; color: #333; }
+.empty-state p { font-size: 13px; margin-bottom: 24px; }
+
+/* Loading */
+.loading-orders { text-align: center; padding: 60px; color: #444; font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: 1px; }
+
+@media(max-width: 768px) {
+  .account-wrap { padding: 80px 20px 60px; }
+  .form-row { flex-direction: column; }
+  .account-tab { padding: 12px 16px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+
+<div class="account-wrap">
+  <div class="account-header">
+    <div>
+      <h1 class="account-title">My Account</h1>
+      <div class="account-subtitle" id="account-email-sub">Loading...</div>
+    </div>
+    <button class="btn-secondary" onclick="logout()">Sign Out</button>
+  </div>
+
+  <div class="account-tabs">
+    <button class="account-tab active" onclick="switchPanel('orders', this)">My Orders</button>
+    <button class="account-tab" onclick="switchPanel('details', this)">My Details</button>
+  </div>
+
+  <!-- Orders Panel -->
+  <div class="tab-panel active" id="panel-orders">
+    <div id="orders-list"><div class="loading-orders">Loading your orders...</div></div>
+  </div>
+
+  <!-- Details Panel -->
+  <div class="tab-panel" id="panel-details">
+    <!-- Profile -->
+    <div class="details-section">
+      <div class="details-section-title">Profile</div>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="detail-name" placeholder="Your name"/>
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="detail-email" readonly/>
+      </div>
+      <button class="btn-primary" onclick="saveName()">Save Changes</button>
+      <div class="form-message" id="name-msg"></div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="details-section">
+      <div class="details-section-title">Change Password</div>
+      <div class="field">
+        <label>Current Password</label>
+        <input type="password" id="pw-current" placeholder="Current password" autocomplete="current-password"/>
+      </div>
+      <div class="field">
+        <label>New Password</label>
+        <input type="password" id="pw-new" placeholder="Min. 8 characters" autocomplete="new-password"/>
+      </div>
+      <div class="field">
+        <label>Confirm New Password</label>
+        <input type="password" id="pw-confirm" placeholder="Repeat new password" autocomplete="new-password"/>
+      </div>
+      <button class="btn-primary" onclick="changePassword()">Update Password</button>
+      <div class="form-message" id="pw-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script src="cart.js"></script>
+<script>
+// Auth guard
+const customer = getCustomer();
+if (!customer) window.location.href = 'account-login.html';
+
+document.getElementById('nav-root').innerHTML = renderNav();
+
+let customerData = null;
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', () => {
+  loadCustomer();
+  loadOrders();
+});
+
+function switchPanel(name, btn) {
+  document.querySelectorAll('.account-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + localStorage.getItem('customer_token')
+  };
+}
+
+async function loadCustomer() {
+  try {
+    const res = await fetch('/customer/me', { headers: authHeaders() });
+    if (res.status === 401) { localStorage.removeItem('customer_token'); window.location.href = 'account-login.html'; return; }
+    const data = await res.json();
+    customerData = data;
+    document.getElementById('account-email-sub').textContent = data.email || '';
+    document.getElementById('detail-name').value = data.name || '';
+    document.getElementById('detail-email').value = data.email || '';
+  } catch(e) {
+    document.getElementById('account-email-sub').textContent = customer.email || '';
+  }
+}
+
+async function loadOrders() {
+  const list = document.getElementById('orders-list');
+  try {
+    const res = await fetch('/customer/orders', { headers: authHeaders() });
+    if (res.status === 401) { localStorage.removeItem('customer_token'); window.location.href = 'account-login.html'; return; }
+    const orders = await res.json();
+
+    if (!orders.length) {
+      list.innerHTML = `<div class="empty-state">
+        <h3>No Orders Yet</h3>
+        <p>When you place your first order, it will appear here.</p>
+        <a href="index.html" class="btn-primary">Shop the Collection</a>
+      </div>`;
+      return;
+    }
+
+    // Get product images from catalogue for display
+    const productMap = {};
+    if (typeof PRODUCTS !== 'undefined') PRODUCTS.forEach(p => { productMap[p.id] = p; });
+
+    list.innerHTML = orders.map(order => {
+      const orderId = (order.id || '').slice(0, 8).toUpperCase();
+      const date = order.created_at ? new Date(order.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : '—';
+      const total = Math.round((order.total_amount || 0) / 100);
+      const items = order.items || [];
+
+      const itemsHtml = items.map(item => {
+        const prod = productMap[item.product_id] || {};
+        return `<div class="order-item-row">
+          <div class="order-item-img">
+            ${prod.image ? `<img src="${escHtml(prod.image)}" alt="${escHtml(item.product_name||'')}"/>` : ''}
+          </div>
+          <div>
+            <div class="order-item-name">${escHtml(item.product_name || '—')}</div>
+            <div class="order-item-meta">SIZE: ${item.size} &nbsp;·&nbsp; QTY: ${item.quantity}</div>
+          </div>
+          <div class="order-item-price">${(item.unit_price||0)*(item.quantity||0)} <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">AED</span></div>
+        </div>`;
+      }).join('');
+
+      return `<div class="order-card">
+        <div class="order-card-header">
+          <div>
+            <div class="order-id">#${orderId}</div>
+            <div class="order-date">${date}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span class="order-status-badge status-${order.status}">${order.status}</span>
+            <div class="order-total">${total} <span>AED</span></div>
+          </div>
+        </div>
+        <div class="order-card-items">${itemsHtml}</div>
+        <div class="order-card-footer">
+          <a href="/invoice/${order.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:9px 18px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Invoice
+          </a>
+          ${order.tracking_number ? `<span style="font-family:'Space Mono',monospace;font-size:10px;color:#a09aff;letter-spacing:1px;">Tracking: ${escHtml(order.tracking_number)}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="loading-orders">Error loading orders. Please refresh.</div>';
+  }
+}
+
+async function saveName() {
+  const name = document.getElementById('detail-name').value.trim();
+  const msg = document.getElementById('name-msg');
+  msg.className = 'form-message';
+  msg.style.display = 'none';
+
+  if (!name) { msg.className = 'form-message error'; msg.textContent = 'Please enter your name.'; return; }
+
+  try {
+    const res = await fetch('/customer/me', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Update failed');
+    // Store new token with updated name
+    if (data.token) localStorage.setItem('customer_token', data.token);
+    msg.className = 'form-message success';
+    msg.textContent = 'Name updated successfully.';
+    // Refresh nav
+    document.getElementById('nav-root').innerHTML = renderNav();
+  } catch(e) {
+    msg.className = 'form-message error';
+    msg.textContent = e.message;
+  }
+}
+
+async function changePassword() {
+  const currentPassword = document.getElementById('pw-current').value;
+  const newPassword = document.getElementById('pw-new').value;
+  const confirmPassword = document.getElementById('pw-confirm').value;
+  const msg = document.getElementById('pw-msg');
+  msg.className = 'form-message';
+  msg.style.display = 'none';
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    msg.className = 'form-message error'; msg.textContent = 'All fields are required.'; return;
+  }
+  if (newPassword.length < 8) {
+    msg.className = 'form-message error'; msg.textContent = 'New password must be at least 8 characters.'; return;
+  }
+  if (newPassword !== confirmPassword) {
+    msg.className = 'form-message error'; msg.textContent = 'New passwords do not match.'; return;
+  }
+
+  try {
+    const res = await fetch('/customer/password', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Update failed');
+    msg.className = 'form-message success';
+    msg.textContent = 'Password updated successfully.';
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+  } catch(e) {
+    msg.className = 'form-message error';
+    msg.textContent = e.message;
+  }
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

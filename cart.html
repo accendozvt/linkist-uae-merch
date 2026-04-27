@@ -148,23 +148,24 @@ async function checkout() {
   btn.disabled = true;
 
   try {
+    const customer = typeof getCustomer === 'function' ? getCustomer() : null;
     const res = await fetch('/create-checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ items, customerId: customer?.customerId || null })
     });
     const data = await res.json();
     if (data.url) {
       window.location.href = data.url;
     } else {
-      throw new Error('No URL returned');
+      throw new Error(data.error || 'No URL returned');
     }
   } catch (err) {
-    btn.textContent = 'Checkout failed — try again';
-    btn.style.background = '#E53935';
-    btn.style.color = '#fff';
+    showToast(err.message || 'Checkout failed', false);
+    btn.textContent = 'Checkout';
+    btn.style.background = '';
+    btn.style.color = '';
     btn.disabled = false;
-    setTimeout(() => { btn.textContent='Checkout'; btn.style.background=''; btn.style.color=''; }, 3000);
   }
 }
 
