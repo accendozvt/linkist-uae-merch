@@ -744,10 +744,11 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
 app.post('/admin/products', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-    const { name, tag, tagline, price, badge, page, image, description, details, active } = req.body;
+    const { id, name, tag, tagline, price, badge, page, image, description, details, active } = req.body;
+    if (!id) return res.status(400).json({ error: 'Product ID (slug) is required' });
     if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
     const { data, error } = await supabase.from('products').insert({
-      name, tag, tagline, price, badge, page, image, description, details, active: active !== false
+      id, name, tag, tagline, price, badge, page, image, description, details, active: active !== false
     }).select().single();
     if (error) throw error;
     res.status(201).json(data);
