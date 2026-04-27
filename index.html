@@ -221,7 +221,7 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 
 function renderProductCard(p) {
   const image = p.image_url || p.image || '';
-  const page = p.page || `${p.id}-edition.html`;
+  const page = p.page || `product.html?id=${p.id}`;
   return `
   <a href="${page}" class="pcard">
     <div class="pcard-img">

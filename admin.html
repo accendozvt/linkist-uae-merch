@@ -568,10 +568,14 @@ function renderPagination(total, page, limit) {
 }
 
 // ── Products ───────────────────────────────────────
+let _productsCache = {};
+
 async function loadProducts() {
   const grid = document.getElementById('products-grid');
   try {
     const products = await api('/admin/products');
+    _productsCache = {};
+    products.forEach(p => { _productsCache[p.id] = p; });
     if (!products.length) { grid.innerHTML = '<div style="color:#444;font-size:13px;grid-column:1/-1;">No products yet</div>'; return; }
     grid.innerHTML = products.map(p => `
       <div class="product-admin-card">
@@ -584,7 +588,7 @@ async function loadProducts() {
           <div class="product-admin-tag">${escHtml(p.tag||p.id||'')}</div>
           <div class="product-admin-price">${p.price} <span style="font-family:'DM Sans',sans-serif;font-size:13px;color:#555;">AED</span></div>
           <div class="product-admin-actions">
-            <button class="action-btn" onclick="openProductModal(${JSON.stringify(JSON.stringify(p))})">Edit</button>
+            <button class="action-btn" onclick="openProductModal('${escHtml(p.id)}')">Edit</button>
             ${p.active
               ? `<button class="action-btn danger" onclick="deleteProduct('${p.id}')">Archive</button>`
               : `<button class="action-btn" style="border-color:#007A3D;color:#007A3D;" onclick="restoreProduct('${p.id}')">Restore</button>`
@@ -596,10 +600,11 @@ async function loadProducts() {
   } catch(e) { grid.innerHTML = '<div style="color:#E53935;grid-column:1/-1;">Error: ' + e.message + '</div>'; }
 }
 
-function openProductModal(jsonStr) {
+function openProductModal(productId) {
   const modal = document.getElementById('product-modal');
-  if (jsonStr) {
-    const p = JSON.parse(jsonStr);
+  if (productId) {
+    const p = _productsCache[productId];
+    if (!p) return;
     document.getElementById('product-modal-title').textContent = 'Edit Product';
     document.getElementById('product-modal-id').value = p.id;
     document.getElementById('pm-id').value = p.id || '';
@@ -609,7 +614,7 @@ function openProductModal(jsonStr) {
     document.getElementById('pm-tagline').value = p.tagline || '';
     document.getElementById('pm-price').value = p.price || '';
     document.getElementById('pm-badge').value = p.badge || '';
-    document.getElementById('pm-image').value = p.image || '';
+    document.getElementById('pm-image').value = p.image_url || p.image || '';
     document.getElementById('pm-desc').value = p.description || '';
   } else {
     document.getElementById('product-modal-title').textContent = 'Add Product';
