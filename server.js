@@ -752,11 +752,11 @@ app.get('/admin/products', requireAdmin, async (req, res) => {
 app.post('/admin/products', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-    const { id, name, tag, tagline, price, badge, page, image, description, details, active } = req.body;
+    const { id, name, tag, tagline, price, badge, page, image, images, description, details, active } = req.body;
     if (!id) return res.status(400).json({ error: 'Product ID (slug) is required' });
     if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
     const { data, error } = await supabase.from('products').insert({
-      id, name, tag, tagline, price, badge, page, image, description, details, active: active !== false
+      id, name, tag, tagline, price, badge, page, image, images: images || [], description, details, active: active !== false
     }).select().single();
     if (error) throw error;
 
@@ -798,9 +798,18 @@ app.delete('/admin/products/:id', requireAdmin, async (req, res) => {
 app.get('/admin/stock', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.json([]);
-    const { data: stock, error } = await supabase.from('stock').select('*, products(name, id)').order('product_id');
+    const [{ data: stock, error }, { data: products }] = await Promise.all([
+      supabase.from('stock').select('*').order('product_id'),
+      supabase.from('products').select('id, name')
+    ]);
     if (error) throw error;
-    res.json(stock || []);
+    const productMap = {};
+    (products || []).forEach(p => { productMap[p.id] = p; });
+    const result = (stock || []).map(s => ({
+      ...s,
+      products: productMap[s.product_id] || { name: s.product_id, id: s.product_id }
+    }));
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

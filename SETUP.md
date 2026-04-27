@@ -206,6 +206,16 @@ The `vercel.json` routes all traffic through `server.js` which serves static fil
 
 ---
 
+## Schema Updates
+
+Run this in Supabase SQL Editor to enable multiple product images:
+
+```sql
+ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
+```
+
+---
+
 ## Pages
 
 | Page | URL | Description |

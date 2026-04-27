@@ -6,8 +6,8 @@
   --border: #1e1e1e;
   --border2:#2a2a2a;
   --white:  #F5F5F5;
-  --muted:  #888;
-  --dim:    #444;
+  --muted:  #aaa;
+  --dim:    #666;
   --red:    #C8102E;
   --green:  #007A3D;
   --accent: #E53935;
@@ -104,14 +104,14 @@ footer {
 
 /* ── BUTTONS ── */
 .btn-primary {
-  background:var(--white); color:var(--black);
+  background:var(--accent); color:#fff;
   border:none; border-radius:8px;
   font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700;
   letter-spacing:0.05em; text-transform:uppercase;
   padding:14px 28px; cursor:pointer; transition:all 0.2s;
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
 }
-.btn-primary:hover { background:var(--accent); color:#fff; }
+.btn-primary:hover { background:var(--white); color:var(--black); }
 .btn-primary:active { transform:scale(0.98); }
 .btn-primary.full { width:100%; }
 .btn-secondary {
@@ -152,6 +152,16 @@ footer {
 .uae-divider .d-w{background:#fff;flex:1}
 .uae-divider .d-b{background:#222;flex:1}
 .uae-divider .d-g{background:var(--green);flex:1}
+
+/* ── PRODUCT IMAGE ZOOM ── */
+.product-img-main { overflow: hidden; }
+.product-img-main img { transition: transform 0.5s ease; }
+.product-img-main:hover img { transform: scale(1.06); }
+
+/* ── PCARD WHITE TEXT ── */
+.pcard, .pcard * { color: var(--white); text-decoration: none; }
+.pcard-tag { color: var(--dim); }
+.pcard-price span { color: var(--dim); }
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px) {
