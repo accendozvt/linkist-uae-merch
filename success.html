@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Confirmed — I Never Left · Linkist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.success-wrap {
+  min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:80px 24px; text-align:center;
+}
+.success-icon {
+  width:72px; height:72px; border-radius:50%;
+  background:rgba(0,122,61,0.15); border:1px solid rgba(0,122,61,0.3);
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 28px; animation:popIn 0.5s ease forwards; opacity:0;
+}
+@keyframes popIn { 0%{opacity:0;transform:scale(0.6)} 70%{transform:scale(1.1)} 100%{opacity:1;transform:scale(1)} }
+.success-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,6vw,80px); line-height:1; margin-bottom:12px; }
+.success-sub { font-size:15px; font-weight:300; color:rgba(255,255,255,0.55); max-width:400px; line-height:1.7; margin-bottom:32px; }
+.success-sub strong { color:#F5F5F5; font-weight:500; }
+.success-actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.uae-flag { display:flex; gap:0; margin:28px auto 0; width:60px; height:4px; border-radius:2px; overflow:hidden; }
+.uae-flag span { flex:1; }
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="success-wrap">
+  <div class="success-icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#007A3D" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <h1 class="success-title">Order Confirmed!</h1>
+  <p class="success-sub">
+    Thank you for standing with the UAE.<br>
+    <strong>Your tee is on its way.</strong><br>
+    You'll receive a confirmation email shortly.
+  </p>
+  <div class="success-actions">
+    <a href="index.html" class="btn-primary">Back to Collection</a>
+  </div>
+  <div class="uae-flag uae-divider">
+    <span class="d-r"></span><span class="d-w"></span><span class="d-b"></span><span class="d-g"></span>
+  </div>
+</div>
+<script src="cart.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderNav();
+Cart.clear();
+</script>
+</body>
+</html>

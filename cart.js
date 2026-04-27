@@ -1,0 +1,160 @@
+// ── CART MANAGER ──────────────────────────────────────────────
+const Cart = {
+  get() {
+    try { return JSON.parse(localStorage.getItem('inl_cart') || '[]'); }
+    catch { return []; }
+  },
+  save(items) {
+    localStorage.setItem('inl_cart', JSON.stringify(items));
+    Cart.updateBadge();
+  },
+  add(product, size, qty) {
+    const items = Cart.get();
+    const key = `${product.id}-${size}`;
+    const existing = items.find(i => i.key === key);
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      items.push({ key, id: product.id, name: product.name, price: product.price, image: product.image, size, qty });
+    }
+    Cart.save(items);
+  },
+  remove(key) {
+    Cart.save(Cart.get().filter(i => i.key !== key));
+  },
+  updateQty(key, qty) {
+    const items = Cart.get();
+    const item = items.find(i => i.key === key);
+    if (item) { item.qty = Math.max(1, qty); Cart.save(items); }
+  },
+  total() {
+    return Cart.get().reduce((s, i) => s + i.price * i.qty, 0);
+  },
+  count() {
+    return Cart.get().reduce((s, i) => s + i.qty, 0);
+  },
+  clear() {
+    localStorage.removeItem('inl_cart');
+    Cart.updateBadge();
+  },
+  updateBadge() {
+    document.querySelectorAll('.cart-count').forEach(el => {
+      const n = Cart.count();
+      el.textContent = n;
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      if (n > 0) el.classList.add('bump');
+    });
+  }
+};
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg, success = true) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast';
+    t.innerHTML = `<div class="toast-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div><span id="toast-msg"></span>`;
+    document.body.appendChild(t);
+  }
+  t.style.borderLeftColor = success ? '#007A3D' : '#E53935';
+  t.querySelector('.toast-icon').style.background = success ? 'rgba(0,122,61,0.2)' : 'rgba(229,57,53,0.2)';
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── LOGO SVG ─────────────────────────────────────────────────
+const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 6 22C10 18 14 16 22 5Z" fill="#E53935"/><path d="M22 5C22 5 20 14 12 22C16 22 20 18 22 5Z" fill="#B71C1C"/></svg>`;
+
+// ── NAV HTML ──────────────────────────────────────────────────
+function renderNav(activePage) {
+  return `
+  <nav>
+    <a href="index.html" class="nav-logo">${LOGO_SVG} Linkist</a>
+    <div class="nav-right">
+      <a href="index.html" class="nav-link ${activePage==='home'?'active':''}">Collection</a>
+      <a href="cart.html" class="cart-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <span>CART</span>
+        <div class="cart-count">0</div>
+      </a>
+    </div>
+  </nav>`;
+}
+
+// ── FOOTER HTML ───────────────────────────────────────────────
+function renderFooter() {
+  return `
+  <footer>
+    <a href="index.html" class="footer-logo">${LOGO_SVG} Linkist</a>
+    <div class="footer-tags">
+      <span class="footer-tag">#istandwithUAE</span>
+      <span class="footer-tag">#borninUAE</span>
+    </div>
+    <div class="footer-right">linkist.ai · April 2026<br>Limited Edition</div>
+  </footer>`;
+}
+
+// ── PRODUCT CATALOGUE ─────────────────────────────────────────
+const PRODUCTS = [
+  {
+    id: 'circle',
+    name: 'Circle Edition',
+    tagline: 'The original statement piece',
+    tag: 'DESIGN 01 · STATEMENT',
+    price: 149,
+    badge: 'BESTSELLER',
+    page: 'circle-edition.html',
+    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_02.png?v=1777283800',
+    description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
+  },
+  {
+    id: 'smile',
+    name: 'Smile Edition',
+    tagline: 'Quiet pride, loud message',
+    tag: 'DESIGN 02 · SUBTLE',
+    price: 149,
+    badge: 'NEW',
+    page: 'smile-edition.html',
+    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_01.png?v=1777284868',
+    description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe Edition',
+    tagline: 'Clean, wearable, timeless',
+    tag: 'DESIGN 03 · CLASSIC',
+    price: 149,
+    badge: null,
+    page: 'stripe-edition.html',
+    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_04.png?v=1777283800',
+    description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
+  },
+  {
+    id: 'stealth',
+    name: 'Stealth Edition',
+    tagline: 'For those who know',
+    tag: 'DESIGN 04 · PREMIUM',
+    price: 169,
+    badge: 'PREMIUM',
+    page: 'stealth-edition.html',
+    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_03.png?v=1777283800',
+    description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop']
+  }
+];
+
+const SIZES = ['XS','S','M','L','XL','XXL'];
+
+// Init badge on load
+document.addEventListener('DOMContentLoaded', () => Cart.updateBadge());

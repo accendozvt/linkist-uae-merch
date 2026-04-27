@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cart — I Never Left · Linkist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.cart-wrap { max-width:900px; margin:0 auto; padding:100px 64px 80px; }
+.cart-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,5vw,64px); margin-bottom:40px; }
+.cart-layout { display:grid; grid-template-columns:1fr 340px; gap:40px; align-items:start; }
+.cart-items { display:flex; flex-direction:column; gap:14px; }
+.cart-item {
+  display:grid; grid-template-columns:80px 1fr auto;
+  gap:16px; align-items:center;
+  background:#111; border:1px solid #1e1e1e; border-radius:10px; padding:14px;
+}
+.cart-item-img { width:80px; height:80px; border-radius:6px; overflow:hidden; background:#0d0d0d; flex-shrink:0; }
+.cart-item-img img { width:100%; height:100%; object-fit:cover; display:block; }
+.cart-item-name { font-size:14px; font-weight:600; margin-bottom:4px; }
+.cart-item-meta { font-family:'Space Mono',monospace; font-size:10px; color:#555; letter-spacing:0.05em; }
+.cart-item-price { font-family:'Bebas Neue',sans-serif; font-size:22px; text-align:right; }
+.cart-item-price span { font-family:'DM Sans',sans-serif; font-size:11px; color:#555; }
+.cart-item-actions { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.remove-btn { background:none; border:none; color:#444; font-size:11px; cursor:pointer; font-family:'Space Mono',monospace; letter-spacing:0.05em; padding:0; transition:color 0.2s; }
+.remove-btn:hover { color:#E53935; }
+.cart-empty { text-align:center; padding:80px 0; }
+.cart-empty h2 { font-family:'Bebas Neue',sans-serif; font-size:48px; margin-bottom:12px; color:#333; }
+.cart-empty p { color:#555; margin-bottom:24px; }
+.order-summary {
+  background:#111; border:1px solid #1e1e1e; border-radius:12px;
+  padding:24px; position:sticky; top:88px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.summary-title { font-family:'Bebas Neue',sans-serif; font-size:28px; }
+.summary-rows { display:flex; flex-direction:column; gap:10px; }
+.summary-row { display:flex; justify-content:space-between; font-size:13px; }
+.summary-row.label { color:rgba(255,255,255,0.5); }
+.summary-total { display:flex; justify-content:space-between; padding-top:14px; border-top:1px solid #1e1e1e; }
+.summary-total-label { font-size:14px; font-weight:600; }
+.summary-total-val { font-family:'Bebas Neue',sans-serif; font-size:28px; }
+.summary-note { font-family:'Space Mono',monospace; font-size:9px; color:#444; letter-spacing:0.05em; line-height:1.6; text-align:center; }
+
+@media(max-width:768px) {
+  .cart-wrap{padding:80px 20px 60px}
+  .cart-layout{grid-template-columns:1fr}
+  .order-summary{position:relative;top:0}
+}
+</style>
+</head>
+<body>
+
+<div id="nav-root"></div>
+<div class="cart-wrap">
+  <h1 class="cart-title">Your Cart</h1>
+  <div id="cart-content"></div>
+</div>
+<div id="footer-root"></div>
+
+<script src="cart.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderNav();
+document.getElementById('footer-root').innerHTML = renderFooter();
+
+function renderCart() {
+  const items = Cart.get();
+  const el = document.getElementById('cart-content');
+
+  if (items.length === 0) {
+    el.innerHTML = `
+      <div class="cart-empty">
+        <h2>Cart is empty</h2>
+        <p>Add some tees to get started</p>
+        <a href="index.html" class="btn-primary">Browse Collection</a>
+      </div>`;
+    return;
+  }
+
+  const itemsHTML = items.map(item => `
+    <div class="cart-item" data-key="${item.key}">
+      <div class="cart-item-img"><img src="${item.image}" alt="${item.name}"/></div>
+      <div>
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-meta">SIZE: ${item.size}</div>
+        <div class="cart-item-actions">
+          <div class="qty-wrap" style="border-color:#2a2a2a;">
+            <button class="qty-btn" onclick="changeQty('${item.key}',-1)">−</button>
+            <span class="qty-num" style="font-size:12px;">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty('${item.key}',1)">+</button>
+          </div>
+          <button class="remove-btn" onclick="removeItem('${item.key}')">✕ Remove</button>
+        </div>
+      </div>
+      <div class="cart-item-price">${item.price * item.qty} <span>AED</span></div>
+    </div>
+  `).join('');
+
+  const total = Cart.total();
+
+  el.innerHTML = `
+    <div class="cart-layout">
+      <div class="cart-items">${itemsHTML}</div>
+      <div class="order-summary">
+        <div class="summary-title">Order Summary</div>
+        <div class="summary-rows">
+          ${items.map(i => `
+            <div class="summary-row label">
+              <span>${i.name} (${i.size}) ×${i.qty}</span>
+              <span>${i.price * i.qty} AED</span>
+            </div>`).join('')}
+        </div>
+        <div class="summary-total">
+          <span class="summary-total-label">Total</span>
+          <span class="summary-total-val">${total} AED</span>
+        </div>
+        <button class="btn-primary full" onclick="checkout()">
+          Checkout
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <p class="summary-note">Secure checkout via Stripe<br>All major cards accepted</p>
+        <a href="index.html" class="btn-secondary" style="justify-content:center;font-size:12px;">← Continue Shopping</a>
+      </div>
+    </div>`;
+}
+
+function changeQty(key, delta) {
+  const items = Cart.get();
+  const item = items.find(i => i.key === key);
+  if (!item) return;
+  const newQty = item.qty + delta;
+  if (newQty < 1) { removeItem(key); return; }
+  Cart.updateQty(key, newQty);
+  renderCart();
+}
+
+function removeItem(key) {
+  Cart.remove(key);
+  renderCart();
+  Cart.updateBadge();
+}
+
+async function checkout() {
+  const items = Cart.get();
+  if (!items.length) return;
+
+  const btn = document.querySelector('.btn-primary.full');
+  btn.textContent = 'Redirecting to Stripe...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items })
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error('No URL returned');
+    }
+  } catch (err) {
+    btn.textContent = 'Checkout failed — try again';
+    btn.style.background = '#E53935';
+    btn.style.color = '#fff';
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent='Checkout'; btn.style.background=''; btn.style.color=''; }, 3000);
+  }
+}
+
+renderCart();
+</script>
+</body>
+</html>

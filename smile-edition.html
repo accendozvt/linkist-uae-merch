@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">I Never Left — Linkist × UAE</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.product-wrap {
+  max-width:1100px; margin:0 auto; padding:100px 64px 80px;
+  display:grid; grid-template-columns:1fr 1fr; gap:72px; align-items:start;
+}
+.product-img-main {
+  position:sticky; top:88px;
+  background:#0d0d0d; border-radius:12px; overflow:hidden; aspect-ratio:1/1;
+}
+.product-img-main img { width:100%; height:100%; object-fit:cover; display:block; }
+.product-info { display:flex; flex-direction:column; gap:24px; }
+.product-tag { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.12em; text-transform:uppercase; }
+.product-name { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,64px); line-height:1; }
+.product-tagline { font-size:15px; font-weight:300; color:rgba(255,255,255,0.55); line-height:1.6; }
+.product-price { font-family:'Bebas Neue',sans-serif; font-size:42px; line-height:1; }
+.product-price span { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#555; }
+.product-divider { border:none; border-top:1px solid #1a1a1a; }
+.label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#555; text-transform:uppercase; margin-bottom:10px; display:block; }
+.product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
+.product-desc strong { color:#F5F5F5; font-weight:500; }
+.details-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.5); display:flex; align-items:center; gap:8px; }
+.details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
+.action-row { display:flex; gap:10px; align-items:center; }
+.size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:-14px; }
+.other-products { padding:0 64px 80px; max-width:1100px; margin:0 auto; }
+.other-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
+
+@media(max-width:768px) {
+  .product-wrap{grid-template-columns:1fr;gap:32px;padding:80px 20px 48px}
+  .product-img-main{position:relative;top:0}
+  .other-products{padding:0 20px 60px}
+  .other-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px) { .other-grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<div id="nav-root"></div>
+
+<div class="product-wrap">
+  <div class="product-img-main">
+    <img id="prod-img" src="" alt=""/>
+  </div>
+
+  <div class="product-info">
+    <div>
+      <div class="product-tag" id="prod-tag"></div>
+      <h1 class="product-name" id="prod-name"></h1>
+      <p class="product-tagline" id="prod-tagline"></p>
+    </div>
+
+    <div class="product-price" id="prod-price"></div>
+
+    <hr class="product-divider">
+
+    <div>
+      <span class="label">Select Size</span>
+      <div class="size-grid" id="size-grid"></div>
+      <div class="size-error" id="size-error">Please select a size</div>
+    </div>
+
+    <div>
+      <span class="label">Quantity</span>
+      <div class="qty-wrap">
+        <button class="qty-btn" id="qty-minus">−</button>
+        <span class="qty-num" id="qty-num">1</span>
+        <button class="qty-btn" id="qty-plus">+</button>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-primary full" id="atc-btn">Add to Cart</button>
+    </div>
+
+    <hr class="product-divider">
+
+    <div>
+      <span class="label">About This Design</span>
+      <p class="product-desc" id="prod-desc"></p>
+    </div>
+
+    <div>
+      <span class="label">Details</span>
+      <ul class="details-list" id="prod-details"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- OTHER PRODUCTS -->
+<div class="other-products">
+  <div class="section-hdr">
+    <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,4vw,48px);line-height:1;">More From The Collection</h2>
+  </div>
+  <div class="other-grid" id="other-grid"></div>
+</div>
+
+<div id="footer-root"></div>
+
+<script src="cart.js"></script>
+<script>
+const PRODUCT_ID = 'smile';
+
+document.getElementById('nav-root').innerHTML = renderNav();
+document.getElementById('footer-root').innerHTML = renderFooter();
+
+const product = PRODUCTS.find(p => p.id === PRODUCT_ID);
+document.title = product.name + ' — I Never Left · Linkist';
+
+// Populate
+document.getElementById('prod-img').src = product.image;
+document.getElementById('prod-img').alt = product.name;
+document.getElementById('prod-tag').textContent = product.tag;
+document.getElementById('prod-name').textContent = product.name;
+document.getElementById('prod-tagline').textContent = product.tagline;
+document.getElementById('prod-price').innerHTML = product.price + ' <span>AED</span>';
+document.getElementById('prod-desc').innerHTML = product.description;
+document.getElementById('prod-details').innerHTML = product.details.map(d => '<li>' + d + '</li>').join('');
+
+// Sizes
+let selectedSize = null;
+const sizeGrid = document.getElementById('size-grid');
+sizeGrid.innerHTML = SIZES.map(s =>
+  '<button class="sz" data-size="' + s + '">' + s + '</button>'
+).join('');
+sizeGrid.querySelectorAll('.sz').forEach(btn => {
+  btn.addEventListener('click', () => {
+    sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedSize = btn.dataset.size;
+    document.getElementById('size-error').style.display = 'none';
+  });
+});
+
+// Qty
+let qty = 1;
+document.getElementById('qty-minus').addEventListener('click', () => {
+  qty = Math.max(1, qty - 1);
+  document.getElementById('qty-num').textContent = qty;
+});
+document.getElementById('qty-plus').addEventListener('click', () => {
+  qty = Math.min(10, qty + 1);
+  document.getElementById('qty-num').textContent = qty;
+});
+
+// Add to Cart
+document.getElementById('atc-btn').addEventListener('click', () => {
+  if (!selectedSize) {
+    document.getElementById('size-error').style.display = 'block';
+    sizeGrid.style.outline = '1px solid #E53935';
+    sizeGrid.style.borderRadius = '8px';
+    sizeGrid.style.padding = '8px';
+    setTimeout(() => { sizeGrid.style.outline=''; sizeGrid.style.padding=''; }, 1500);
+    return;
+  }
+  Cart.add(product, selectedSize, qty);
+  const btn = document.getElementById('atc-btn');
+  btn.textContent = '✓ Added to Cart';
+  btn.style.background = '#1a4a1a';
+  btn.style.color = '#4CAF50';
+  setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
+  showToast(product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
+});
+
+// Other products
+const others = PRODUCTS.filter(p => p.id !== PRODUCT_ID);
+document.getElementById('other-grid').innerHTML = others.map(p => `
+  <a href="${p.page}" class="pcard">
+    <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
+      <img src="${p.image}" alt="${p.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
+      ${p.badge ? '<div class="pcard-badge">' + p.badge + '</div>' : ''}
+    </div>
+    <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:#111;">
+      <div class="pcard-name">${p.name}</div>
+      <div class="pcard-tag">${p.tag}</div>
+      <div class="pcard-price">${p.price} <span>AED</span></div>
+    </div>
+  </a>
+`).join('');
+</script>
+</body>
+</html>
