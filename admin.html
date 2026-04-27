@@ -196,10 +196,14 @@ tr:hover td { background:rgba(255,255,255,0.02); }
     <div class="login-logo">LINKIST</div>
     <div class="login-sub">ADMIN DASHBOARD</div>
     <div class="input-group">
-      <label>Admin Password</label>
-      <input type="password" id="admin-password" placeholder="Enter password" autocomplete="current-password"/>
+      <label>Email</label>
+      <input type="email" id="admin-email" placeholder="Admin email" autocomplete="username"/>
     </div>
-    <div class="login-error" id="login-error">Invalid password</div>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="admin-password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div class="login-error" id="login-error">Invalid email or password</div>
     <button class="btn-primary" style="width:100%;margin-top:8px;" onclick="doLogin()">Sign In</button>
   </div>
 </div>
@@ -304,40 +308,44 @@ tr:hover td { background:rgba(255,255,255,0.02); }
 <script>
 // ── State ──────────────────────────────────────────
 let adminPassword = '';
+let adminEmail = '';
 let currentOrderPage = 1;
 let totalOrders = 0;
 let searchTimer = null;
 
 // ── Login ──────────────────────────────────────────
 function doLogin() {
+  const email = document.getElementById('admin-email').value.trim();
   const pw = document.getElementById('admin-password').value;
-  if (!pw) return;
+  if (!email || !pw) return;
+  adminEmail = email;
   adminPassword = pw;
-  // Try to verify by calling /admin/stats
-  fetch('/admin/stats', { headers: { 'x-admin-password': pw } })
+  fetch('/admin/stats', { headers: { 'x-admin-email': email, 'x-admin-password': pw } })
     .then(r => {
       if (r.status === 401) {
         document.getElementById('login-error').style.display = 'block';
-        adminPassword = '';
+        adminEmail = ''; adminPassword = '';
         return;
       }
       return r.json().then(data => {
-        // Optionally store in sessionStorage (warn: not secure for production)
+        sessionStorage.setItem('admin_email', email);
         sessionStorage.setItem('admin_pw', pw);
         showDashboard(data);
       });
     })
-    .catch(() => { document.getElementById('login-error').style.display = 'block'; adminPassword = ''; });
+    .catch(() => { document.getElementById('login-error').style.display = 'block'; adminEmail = ''; adminPassword = ''; });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const savedEmail = sessionStorage.getItem('admin_email');
   const saved = sessionStorage.getItem('admin_pw');
+  if (savedEmail) adminEmail = savedEmail;
   if (saved) {
     adminPassword = saved;
-    fetch('/admin/stats', { headers: { 'x-admin-password': saved } })
+    fetch('/admin/stats', { headers: { 'x-admin-email': adminEmail, 'x-admin-password': saved } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) showDashboard(data); else sessionStorage.removeItem('admin_pw'); })
-      .catch(() => sessionStorage.removeItem('admin_pw'));
+      .then(data => { if (data) showDashboard(data); else { sessionStorage.removeItem('admin_pw'); sessionStorage.removeItem('admin_email'); } })
+      .catch(() => { sessionStorage.removeItem('admin_pw'); sessionStorage.removeItem('admin_email'); });
   }
 
   document.getElementById('admin-password').addEventListener('keydown', e => {
@@ -352,9 +360,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function doLogout() {
   sessionStorage.removeItem('admin_pw');
-  adminPassword = '';
+  sessionStorage.removeItem('admin_email');
+  adminPassword = ''; adminEmail = '';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-email').value = '';
   document.getElementById('admin-password').value = '';
 }
 
@@ -369,7 +379,7 @@ function showDashboard(stats) {
 async function api(path, options = {}) {
   const res = await fetch(path, {
     ...options,
-    headers: { 'x-admin-password': adminPassword, 'Content-Type': 'application/json', ...(options.headers || {}) }
+    headers: { 'x-admin-email': adminEmail, 'x-admin-password': adminPassword, 'Content-Type': 'application/json', ...(options.headers || {}) }
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));

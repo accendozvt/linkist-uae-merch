@@ -24,7 +24,10 @@ app.use(express.static(path.join(__dirname)));
 // ── Middleware helpers ──────────────────────────────────────────
 
 function requireAdmin(req, res, next) {
-  if (!process.env.ADMIN_PASSWORD || req.headers['x-admin-password'] !== process.env.ADMIN_PASSWORD) {
+  const validEmail = process.env.ADMIN_EMAIL;
+  const validPassword = process.env.ADMIN_PASSWORD;
+  if (!validEmail || !validPassword) return res.status(503).json({ error: 'Admin credentials not configured' });
+  if (req.headers['x-admin-email'] !== validEmail || req.headers['x-admin-password'] !== validPassword) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   next();
