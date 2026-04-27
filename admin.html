@@ -321,7 +321,11 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
       <button class="img-picker-toggle" onclick="toggleImgPicker('pm-images-picker')" type="button">📁 Pick from uploaded images</button>
       <div class="img-picker-grid" id="pm-images-picker"></div>
     </div>
-    <div class="input-group"><label>Description</label><input type="text" id="pm-desc" placeholder="Product description"/></div>
+    <div class="input-group"><label>Description</label><textarea id="pm-desc" rows="2" placeholder="Product description — supports &lt;em&gt; and &lt;strong&gt;"></textarea></div>
+    <div class="input-group">
+      <label>Details (bullet points — one per line)</label>
+      <textarea id="pm-details" rows="4" placeholder="Premium performance fabric&#10;Unisex fit — true to size&#10;Crew neck, short sleeve"></textarea>
+    </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="closeProductModal()">Cancel</button>
       <button class="btn-primary" onclick="saveProduct()">Save Product</button>
@@ -691,11 +695,13 @@ function openProductModal(productId) {
     const imagesArr = Array.isArray(p.images) ? p.images : [];
     document.getElementById('pm-images').value = imagesArr.join('\n');
     document.getElementById('pm-desc').value = p.description || '';
+    const detailsArr = Array.isArray(p.details) ? p.details : [];
+    document.getElementById('pm-details').value = detailsArr.join('\n');
   } else {
     document.getElementById('product-modal-title').textContent = 'Add Product';
     document.getElementById('product-modal-id').value = '';
     document.getElementById('pm-id').disabled = false;
-    ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-image','pm-images','pm-desc'].forEach(id => {
+    ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
       document.getElementById(id).value = '';
     });
   }
@@ -712,7 +718,11 @@ function openProductModal(productId) {
 
 function closeProductModal() {
   document.getElementById('product-modal').classList.remove('open');
-  document.getElementById('pm-images').value = '';
+  ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('pm-id').disabled = false;
 }
 
 async function saveProduct() {
@@ -729,6 +739,9 @@ async function saveProduct() {
       ? document.getElementById('pm-images').value.trim().split('\n').map(s => s.trim()).filter(Boolean)
       : [],
     description: document.getElementById('pm-desc').value.trim(),
+    details: document.getElementById('pm-details').value.trim()
+      ? document.getElementById('pm-details').value.trim().split('\n').map(s => s.trim()).filter(Boolean)
+      : [],
     active: true,
   };
   if (!payload.name || !payload.price) { alert('Name and price are required'); return; }

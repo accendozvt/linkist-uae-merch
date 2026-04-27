@@ -105,7 +105,7 @@ app.post('/create-checkout', async (req, res) => {
           product_data: {
             name: `I Never Left — ${item.name}`,
             description: `Size: ${item.size} · Limited April 2026 Edition`,
-            images: [item.image],
+            images: item.image ? [item.image] : [],
           },
           unit_amount: serverPrice * 100,
         },
@@ -755,8 +755,10 @@ app.post('/admin/products', requireAdmin, async (req, res) => {
     const { id, name, tag, tagline, price, badge, page, image, images, description, details, active } = req.body;
     if (!id) return res.status(400).json({ error: 'Product ID (slug) is required' });
     if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+    const safeImages = Array.isArray(images) ? images : [];
+    const safeDetails = Array.isArray(details) ? details : (typeof details === 'string' && details ? [details] : []);
     const { data, error } = await supabase.from('products').insert({
-      id, name, tag, tagline, price, badge, page, image, images: images || [], description, details, active: active !== false
+      id, name, tag, tagline, price, badge, page, image, images: safeImages, description, details: safeDetails, active: active !== false
     }).select().single();
     if (error) throw error;
 
@@ -775,7 +777,12 @@ app.post('/admin/products', requireAdmin, async (req, res) => {
 app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-    const updates = { ...req.body, updated_at: new Date().toISOString() };
+    const body = req.body;
+    if ('name' in body && !body.name?.trim()) return res.status(400).json({ error: 'Name cannot be empty' });
+    if ('price' in body && (body.price === null || body.price === undefined || isNaN(body.price))) return res.status(400).json({ error: 'Price must be a number' });
+    if ('images' in body) body.images = Array.isArray(body.images) ? body.images : [];
+    if ('details' in body) body.details = Array.isArray(body.details) ? body.details : (typeof body.details === 'string' && body.details ? [body.details] : []);
+    const updates = { ...body, updated_at: new Date().toISOString() };
     const { data, error } = await supabase.from('products').update(updates).eq('id', req.params.id).select().single();
     if (error) throw error;
     res.json(data);
