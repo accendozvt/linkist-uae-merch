@@ -114,8 +114,9 @@ function renderNav(activePage) {
       ${desktopAuth}
       <a href="cart.html" class="cart-btn">${CART_ICON}<span>CART</span><div class="cart-count">0</div></a>
     </div>
-    <div class="nav-right" style="display:none" id="nav-mobile-controls">
-      <a href="cart.html" class="cart-btn">${CART_ICON}<div class="cart-count">0</div></a>
+    <div class="nav-mobile-bar">
+      <a href="account-login.html" class="nav-link" style="font-size:11px;">${customer ? `Hi ${firstName}` : 'Login'}</a>
+      <a href="cart.html" class="cart-btn" style="padding:6px 10px 6px 8px;">${CART_ICON}<div class="cart-count">0</div></a>
       <button class="nav-hamburger" onclick="toggleNavDrawer()" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
@@ -124,18 +125,7 @@ function renderNav(activePage) {
   <div class="nav-drawer" id="nav-drawer">
     <a href="collection.html">Collection</a>
     ${drawerAuth}
-  </div>
-  <script>
-    (function(){
-      var mq = window.matchMedia('(max-width:768px)');
-      function applyMq(e) {
-        var mc = document.getElementById('nav-mobile-controls');
-        if (mc) mc.style.display = e.matches ? 'flex' : 'none';
-      }
-      mq.addEventListener ? mq.addEventListener('change', applyMq) : mq.addListener(applyMq);
-      applyMq(mq);
-    })();
-  </script>`;
+  </div>`;
 }
 
 function toggleNavDrawer() {

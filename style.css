@@ -214,12 +214,18 @@ footer {
 .pcard-tag { color: var(--dim); }
 .pcard-price span { color: var(--dim); }
 
+/* Mobile bar — shown only on mobile */
+.nav-mobile-bar {
+  display: none; align-items: center; gap: 8px;
+}
+
 /* ── RESPONSIVE ── */
 @media(max-width:768px) {
   nav { padding:0 16px; }
   .nav-right { display:none; }
+  .nav-mobile-bar { display:flex; }
   .nav-hamburger { display:flex; }
-  footer { grid-template-columns:1fr; grid-template-rows:auto auto auto; padding:24px 20px 20px; }
+  footer { grid-template-columns:1fr; grid-template-rows:auto auto auto auto; padding:24px 20px 20px; }
   .footer-logo { grid-column:1; grid-row:1; }
   .footer-tags { grid-column:1; grid-row:2; }
   .footer-right { grid-column:1; grid-row:3; text-align:left; }
