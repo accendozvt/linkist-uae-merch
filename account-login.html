@@ -201,13 +201,14 @@
 <script>
 // Redirect if already logged in
 const existing = getCustomer();
-if (existing) window.location.href = 'account.html';
+if (existing) window.location.href = redirectTo;
 
 document.getElementById('nav-root').innerHTML = renderNav();
 
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'register') switchAuthTab('register');
 const linkSession = urlParams.get('link_session') || null;
+const redirectTo = urlParams.get('redirect') || 'account.html';
 
 async function linkGuestOrder(token) {
   if (!linkSession) return;
@@ -253,7 +254,7 @@ async function doLogin() {
     if (!res.ok) throw new Error(data.error || 'Login failed');
     localStorage.setItem('customer_token', data.token);
     await linkGuestOrder(data.token);
-    window.location.href = 'account.html';
+    window.location.href = redirectTo;
   } catch (err) {
     errEl.textContent = err.message;
     errEl.style.display = 'block';
@@ -297,7 +298,7 @@ async function doRegister() {
     if (!res.ok) throw new Error(data.error || 'Registration failed');
     localStorage.setItem('customer_token', data.token);
     await linkGuestOrder(data.token);
-    window.location.href = 'account.html';
+    window.location.href = redirectTo;
   } catch (err) {
     errEl.textContent = err.message;
     errEl.style.display = 'block';

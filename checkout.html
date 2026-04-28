@@ -8,6 +8,30 @@
 <style>
 .co-wrap { max-width: 1060px; margin: 0 auto; padding: 100px 40px 80px; }
 .co-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(32px,5vw,56px); margin-bottom: 40px; }
+/* Auth gate */
+.co-auth-gate {
+  max-width: 480px; margin: 0 auto; text-align: center; padding: 20px 0 40px;
+}
+.co-auth-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(200,16,46,0.1); border: 1px solid rgba(200,16,46,0.25);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+}
+.co-auth-heading { font-family: 'Bebas Neue', sans-serif; font-size: 28px; margin-bottom: 8px; }
+.co-auth-sub { font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 32px; }
+.co-auth-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.co-auth-card {
+  background: #111; border: 1px solid #1e1e1e; border-radius: 12px;
+  padding: 24px 20px; text-align: left; transition: border-color 0.2s;
+}
+.co-auth-card:hover { border-color: #333; }
+.co-auth-card-label {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: #555;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+}
+.co-auth-card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.co-auth-card-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 16px; }
+@media(max-width: 480px) { .co-auth-cards { grid-template-columns: 1fr; } }
 .co-layout { display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: start; }
 .co-form-card {
   background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 32px;
@@ -104,6 +128,56 @@ if (!cartItems.length) {
 const customer = getCustomer();
 
 const EMIRATES = ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'];
+
+function renderAuthGate() {
+  const total = Cart.total();
+  const summaryHTML = cartItems.map(item => `
+    <div class="co-sum-item">
+      <div class="co-sum-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
+      <div>
+        <div class="co-sum-name">${escHtml(item.name)}</div>
+        <div class="co-sum-meta">SIZE: ${item.size} &nbsp;·&nbsp; ×${item.qty}</div>
+      </div>
+      <div class="co-sum-price">${item.price * item.qty}<span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;"> AED</span></div>
+    </div>
+  `).join('');
+
+  document.getElementById('co-main').innerHTML = `
+    <div class="co-layout">
+      <div class="co-auth-gate">
+        <div class="co-auth-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h2 class="co-auth-heading">Sign in to continue</h2>
+        <p class="co-auth-sub">Create an account or log in to complete your purchase.<br>Your order and shipping details will be saved.</p>
+        <div class="co-auth-cards">
+          <div class="co-auth-card">
+            <div class="co-auth-card-label">New here?</div>
+            <div class="co-auth-card-title">Create Account</div>
+            <div class="co-auth-card-desc">Takes 30 seconds. Track orders and save your shipping details.</div>
+            <a href="account-login.html?tab=register&redirect=checkout.html" class="btn-primary" style="display:flex;justify-content:center;font-size:13px;padding:11px 20px;">Create Account →</a>
+          </div>
+          <div class="co-auth-card">
+            <div class="co-auth-card-label">Have an account?</div>
+            <div class="co-auth-card-title">Sign In</div>
+            <div class="co-auth-card-desc">Log in to pre-fill your details and complete checkout faster.</div>
+            <a href="account-login.html?redirect=checkout.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:13px;padding:11px 20px;">Sign In →</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="co-summary">
+        <div class="co-sum-title">Your Order</div>
+        <div class="co-sum-items">${summaryHTML}</div>
+        <div class="co-sum-total">
+          <span class="co-sum-total-label">Total</span>
+          <span class="co-sum-total-val">${total} <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;">AED</span></span>
+        </div>
+        <a href="cart.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:12px;margin-top:16px;">← Edit Cart</a>
+      </div>
+    </div>
+  `;
+}
 
 function renderPage() {
   const total = Cart.total();
@@ -299,7 +373,12 @@ function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-renderPage();
+// Show auth gate for guests, checkout form for logged-in customers
+if (customer) {
+  renderPage();
+} else {
+  renderAuthGate();
+}
 </script>
 </body>
 </html>

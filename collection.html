@@ -12,7 +12,34 @@
 .collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; line-height:1.8; }
 .collection-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#888; font-family:'Space Mono',monospace; font-size:13px; }
-.pcard-soldout { opacity:0.6; }
+/* Product cards */
+.pcard {
+  background:#111; border:1px solid #1e1e1e; border-radius:10px; overflow:hidden;
+  display:flex; flex-direction:column; text-decoration:none; color:var(--white);
+  transition:transform 0.3s, border-color 0.3s;
+}
+.pcard:hover { transform:translateY(-5px); border-color:rgba(255,255,255,0.12); }
+.pcard-img { position:relative; background:#0d0d0d; aspect-ratio:1/1; overflow:hidden; }
+.pcard-img img { width:100%; height:100%; object-fit:cover; transition:transform 0.5s; display:block; }
+.pcard:hover .pcard-img img { transform:scale(1.04); }
+.pcard-badge {
+  position:absolute; top:10px; left:10px; z-index:1;
+  background:#E53935; color:#fff; font-family:'Space Mono',monospace;
+  font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em;
+}
+.pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
+.pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
+.pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
+.pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; }
+.pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
+.pcard-cta {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  background:rgba(255,255,255,0.06); border-radius:6px; padding:9px;
+  font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+  transition:background 0.2s;
+}
+.pcard:hover .pcard-cta { background:rgba(255,255,255,0.12); }
+.pcard-soldout { opacity:0.6; pointer-events:auto; }
 .pcard-soldout:hover { transform:none; }
 .pcard-stock-warn { position:absolute; bottom:8px; left:8px; z-index:1; background:rgba(200,16,46,0.85); color:#fff; font-family:'Space Mono',monospace; font-size:9px; padding:3px 8px; border-radius:3px; letter-spacing:0.08em; }
 @media(max-width:960px) { .collection-grid{grid-template-columns:repeat(3,1fr)} .collection-page{padding:80px 40px 80px} }

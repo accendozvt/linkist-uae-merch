@@ -127,7 +127,6 @@ app.post('/create-checkout', async (req, res) => {
           product_data: {
             name: `I Never Left — ${item.name}`,
             description: `Size: ${item.size} · Limited April 2026 Edition`,
-            images: item.image ? [item.image] : [],
           },
           unit_amount: serverPrice * 100,
         },
@@ -200,7 +199,7 @@ app.post('/pre-checkout', async (req, res) => {
       return {
         price_data: {
           currency: 'aed',
-          product_data: { name: `I Never Left — ${item.name}`, description: `Size: ${item.size}`, images: item.image ? [item.image] : [] },
+          product_data: { name: `I Never Left — ${item.name}`, description: `Size: ${item.size}` },
           unit_amount: serverPrice * 100,
         },
         quantity: item.qty,
@@ -557,27 +556,33 @@ async function generateInvoiceBuffer(order, items) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // Top flag bar
-    doc.rect(0, 0, 595, 5).fill('#C8102E');
-    doc.rect(0, 5, 595, 5).fill('#007A3D');
+    // Dark header band
+    doc.rect(0, 0, 595, 75).fill('#0a0a0a');
+    // UAE flag stripe at very top
+    doc.rect(0, 0, 595, 3).fill('#C8102E');
 
-    // Logo
-    doc.fontSize(26).font('Helvetica-Bold').fillColor('#000000').text('LINKIST', 50, 30);
-    doc.fontSize(9).font('Helvetica').fillColor('#666666').text('I Never Left · UAE · linkist.ai', 50, 60);
+    // Logo image (white on dark background) — fallback to text if file missing
+    const logoPath = path.join(__dirname, 'images', 'linkist-white.png');
+    try {
+      doc.image(logoPath, 28, 16, { height: 38 });
+    } catch {
+      doc.fontSize(22).font('Helvetica-Bold').fillColor('#ffffff').text('LINKIST', 28, 22);
+    }
+    doc.fontSize(8).font('Helvetica').fillColor('#666666').text('I NEVER LEFT · UAE · linkist.ai', 28, 58);
 
-    // Invoice label
-    doc.fontSize(22).font('Helvetica-Bold').fillColor('#000000').text('INVOICE', 400, 30, { align: 'right', width: 145 });
-    doc.fontSize(10).font('Helvetica').fillColor('#555555').text(`#${(order.id || '').slice(0,8).toUpperCase()}`, 400, 57, { align: 'right', width: 145 });
-    doc.text(`Date: ${new Date(order.created_at || Date.now()).toLocaleDateString('en-GB')}`, 400, 71, { align: 'right', width: 145 });
+    // Invoice label (right side of dark header)
+    doc.fontSize(20).font('Helvetica-Bold').fillColor('#ffffff').text('INVOICE', 350, 18, { align: 'right', width: 215 });
+    doc.fontSize(9).font('Helvetica').fillColor('#888888').text(`#${(order.id || '').slice(0,8).toUpperCase()}`, 350, 44, { align: 'right', width: 215 });
+    doc.text(`${new Date(order.created_at || Date.now()).toLocaleDateString('en-GB')}`, 350, 56, { align: 'right', width: 215 });
 
-    // Divider
-    doc.moveTo(50, 95).lineTo(545, 95).lineWidth(1.5).stroke('#C8102E');
+    // Divider below header
+    doc.moveTo(0, 75).lineTo(595, 75).lineWidth(2).stroke('#C8102E');
 
     // Bill to
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, 110);
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, 123);
-    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, 138);
-    let billY = 152;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, 95);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, 108);
+    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, 123);
+    let billY = 137;
     if (order.customer_phone) {
       doc.text(order.customer_phone, 50, billY, { width: 250 });
       billY += 14;
@@ -589,7 +594,7 @@ async function generateInvoiceBuffer(order, items) {
     }
 
     // Items table
-    const tY = 215;
+    const tY = 200;
     doc.rect(50, tY, 495, 22).fill('#f0f0f0');
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
     doc.text('ITEM', 60, tY + 7);

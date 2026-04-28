@@ -96,7 +96,7 @@ function renderNav(activePage) {
     : `<a href="account-login.html" class="nav-link">Login</a>`;
 
   return `<nav>
-    <a href="index.html" class="nav-logo">${LOGO_IMG} Linkist</a>
+    <a href="index.html" class="nav-logo">${LOGO_IMG}</a>
     <div class="nav-right">
       <a href="collection.html" class="nav-link nav-collection-link ${activePage==='collection'?'active':''}">Collection</a>
       ${authHtml}
@@ -117,7 +117,7 @@ function renderNav(activePage) {
 function renderFooter() {
   return `
   <footer>
-    <a href="index.html" class="footer-logo">${LOGO_SVG} Linkist</a>
+    <a href="index.html" class="footer-logo">${LOGO_IMG}</a>
     <div class="footer-tags">
       <span class="footer-tag">#istandwithUAE</span>
       <span class="footer-tag">#borninUAE</span>
