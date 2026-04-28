@@ -376,73 +376,113 @@ function buyerEmailHtml(order, items) {
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
 
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#0a0a0a;font-family:Arial,sans-serif;">
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
-  <!-- UAE Flag Bar -->
-  <div style="display:flex;height:6px;">
-    <div style="flex:1;background:#C8102E;"></div>
-    <div style="flex:1;background:#ffffff;"></div>
-    <div style="flex:1;background:#111111;"></div>
-    <div style="flex:1;background:#007A3D;"></div>
-  </div>
-  <!-- Header -->
-  <div style="padding:40px 40px 30px;text-align:center;border-bottom:1px solid #1e1e1e;">
-    <div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:2px;">LINKIST</div>
-    <div style="font-size:12px;color:#666;letter-spacing:3px;margin-top:4px;">I NEVER LEFT · UAE</div>
-  </div>
+  <!-- UAE Flag Bar top -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td>
+    <td style="background:#ffffff;height:5px;"></td>
+    <td style="background:#111111;height:5px;"></td>
+    <td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <!-- Header with logo -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <img src="https://linkist.ai/images/linkist-white.png" alt="Linkist" width="120" style="display:inline-block;max-width:120px;" onerror="this.style.display='none'"/>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
+  </td></tr></table>
   <!-- Success icon -->
-  <div style="text-align:center;padding:32px 40px 0;">
-    <div style="width:60px;height:60px;border-radius:50%;background:rgba(0,122,61,0.15);border:1px solid rgba(0,122,61,0.4);display:inline-flex;align-items:center;justify-content:center;">
-      <span style="font-size:28px;">✓</span>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="text-align:center;padding:36px 40px 0;">
+    <div style="width:64px;height:64px;border-radius:50%;background:#007A3D;display:inline-block;text-align:center;line-height:64px;">
+      <span style="color:#fff;font-size:32px;font-weight:bold;line-height:64px;">&#10003;</span>
     </div>
-    <h1 style="color:#fff;font-size:28px;margin:16px 0 8px;">Order Confirmed!</h1>
+    <h1 style="color:#ffffff;font-size:26px;margin:18px 0 8px;font-family:Arial,sans-serif;">Order Confirmed!</h1>
     <p style="color:#888;font-size:14px;margin:0;">Thank you for standing with the UAE</p>
-    <div style="font-family:monospace;font-size:12px;color:#555;margin-top:12px;">ORDER #${orderId}</div>
-  </div>
+    <div style="font-family:monospace;font-size:12px;color:#555;margin-top:10px;letter-spacing:1px;">ORDER #${orderId}</div>
+  </td></tr></table>
   <!-- Items -->
-  <div style="padding:32px 40px;">
-    <div style="font-size:11px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:12px;">Your Order</div>
-    <table style="width:100%;border-collapse:collapse;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px;">
+    <div style="font-size:10px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:14px;">Your Order</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
       <thead>
         <tr style="border-bottom:1px solid #222;">
-          <th style="padding:8px;text-align:left;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">ITEM</th>
-          <th style="padding:8px;text-align:center;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">SIZE</th>
-          <th style="padding:8px;text-align:center;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">QTY</th>
-          <th style="padding:8px;text-align:right;font-size:11px;color:#555;font-weight:normal;letter-spacing:1px;">AMOUNT</th>
+          <th style="padding:8px 6px;text-align:left;font-size:10px;color:#555;font-weight:normal;letter-spacing:1px;">ITEM</th>
+          <th style="padding:8px 6px;text-align:center;font-size:10px;color:#555;font-weight:normal;letter-spacing:1px;">SIZE</th>
+          <th style="padding:8px 6px;text-align:center;font-size:10px;color:#555;font-weight:normal;letter-spacing:1px;">QTY</th>
+          <th style="padding:8px 6px;text-align:right;font-size:10px;color:#555;font-weight:normal;letter-spacing:1px;">AMOUNT</th>
         </tr>
       </thead>
       <tbody>${itemRows}</tbody>
     </table>
-    <div style="border-top:1px solid #C8102E;margin-top:16px;padding-top:16px;display:flex;justify-content:space-between;">
-      <span style="color:#888;font-size:14px;">Total</span>
-      <span style="color:#fff;font-size:20px;font-weight:bold;">AED ${total}</span>
-    </div>
-  </div>
-  ${addrText ? `<div style="padding:0 40px 32px;">
-    <div style="font-size:11px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:10px;">Shipping To</div>
-    <div style="color:#ccc;font-size:13px;line-height:1.6;">${order.customer_name}<br>${addrText}</div>
-  </div>` : ''}
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #C8102E;margin-top:16px;"><tr>
+      <td style="padding-top:14px;color:#888;font-size:14px;">Total</td>
+      <td style="padding-top:14px;color:#fff;font-size:22px;font-weight:bold;text-align:right;">AED ${total}</td>
+    </tr></table>
+  </td></tr></table>
+  ${addrText ? `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 28px;">
+    <div style="font-size:10px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:10px;">Shipping To</div>
+    <div style="color:#ccc;font-size:13px;line-height:1.7;">${order.customer_name}<br>${addrText}</div>
+  </td></tr></table>` : ''}
   <!-- Message -->
-  <div style="margin:0 40px;padding:24px;background:#111;border-radius:8px;border-left:3px solid #007A3D;">
-    <p style="color:#ccc;font-size:14px;line-height:1.7;margin:0;font-style:italic;">"I Never Left is not just a shirt. It's a statement of where we stand — and where we always will."</p>
-    <div style="font-size:11px;color:#555;margin-top:8px;">— Linkist Team, UAE</div>
-  </div>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 32px;">
+    <div style="padding:22px 24px;background:#111111;border-radius:8px;border-left:3px solid #007A3D;">
+      <p style="color:#ccc;font-size:14px;line-height:1.8;margin:0;font-style:italic;">"I Never Left is not just a shirt. It's a statement of where we stand — and where we always will."</p>
+      <div style="font-size:11px;color:#555;margin-top:10px;">— Linkist Team, UAE</div>
+    </div>
+  </td></tr></table>
   <!-- Footer -->
-  <div style="padding:32px 40px;text-align:center;border-top:1px solid #1e1e1e;margin-top:32px;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 40px;text-align:center;border-top:1px solid #1e1e1e;">
     <div style="font-size:12px;color:#444;line-height:1.8;">
-      <a href="https://linkist.ai" style="color:#888;text-decoration:none;">linkist.ai</a>
-      &nbsp;·&nbsp; #istandwithUAE &nbsp;·&nbsp; #borninUAE
+      <a href="https://linkist.ai" style="color:#666;text-decoration:none;">linkist.ai</a>
+      &nbsp;·&nbsp; #IstandwithUAE &nbsp;·&nbsp; #BornInTheUAE
     </div>
     <div style="font-size:10px;color:#333;margin-top:8px;">100% of proceeds go to UAE community relief</div>
-  </div>
+  </td></tr></table>
   <!-- UAE Flag Bar bottom -->
-  <div style="display:flex;height:4px;">
-    <div style="flex:1;background:#007A3D;"></div>
-    <div style="flex:1;background:#111111;"></div>
-    <div style="flex:1;background:#ffffff;"></div>
-    <div style="flex:1;background:#C8102E;"></div>
-  </div>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#007A3D;height:4px;"></td>
+    <td style="background:#111111;height:4px;"></td>
+    <td style="background:#ffffff;height:4px;"></td>
+    <td style="background:#C8102E;height:4px;"></td>
+  </tr></table>
 </div></body></html>`;
+}
+
+async function sendWelcomeEmail(customer) {
+  if (!resend || !customer.email) return;
+  await resend.emails.send({
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: customer.email,
+    subject: 'Welcome to Linkist UAE — I Never Left',
+    html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td><td style="background:#ffffff;height:5px;"></td>
+    <td style="background:#111111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <img src="https://linkist.ai/images/linkist-white.png" alt="Linkist" width="120" style="display:inline-block;max-width:120px;"/>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
+    <h1 style="color:#ffffff;font-size:24px;margin:0 0 12px;">Welcome, ${customer.name.split(' ')[0]}!</h1>
+    <p style="color:#888;font-size:14px;line-height:1.8;margin:0 0 24px;">Your account is ready. You can now track your orders and shop the limited edition I Never Left collection.</p>
+    <a href="https://linkist.ai" style="display:inline-block;background:#E53935;color:#ffffff;font-size:13px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:1px;">SHOP THE COLLECTION</a>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 32px;">
+    <div style="padding:22px 24px;background:#111111;border-radius:8px;border-left:3px solid #C8102E;">
+      <p style="color:#ccc;font-size:13px;line-height:1.8;margin:0;font-style:italic;">"When uncertainty came close, we stayed. Because the UAE is not just where we work — it is where Linkist was born."</p>
+      <div style="font-size:11px;color:#555;margin-top:10px;">— Linkist Team, UAE</div>
+    </div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #1e1e1e;">
+    <div style="font-size:11px;color:#444;line-height:1.8;"><a href="https://linkist.ai" style="color:#666;text-decoration:none;">linkist.ai</a> &nbsp;·&nbsp; #IstandwithUAE &nbsp;·&nbsp; #BornInTheUAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#007A3D;height:4px;"></td><td style="background:#111111;height:4px;"></td>
+    <td style="background:#ffffff;height:4px;"></td><td style="background:#C8102E;height:4px;"></td>
+  </tr></table>
+</div></body></html>`
+  });
 }
 
 async function sendBuyerEmail(order) {
@@ -456,7 +496,7 @@ async function sendBuyerEmail(order) {
   })));
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <hello@linkist.ai>',
+    from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     subject: `Order Confirmed — I Never Left #${orderId}`,
     html: buyerEmailHtml(order, items),
@@ -468,13 +508,17 @@ async function sendBuyerEmail(order) {
 }
 
 async function sendSellerEmail(order) {
-  if (!resend || !process.env.SELLER_EMAIL) return;
+  if (!resend) return;
+  const adminRecipients = ['linkistai@gmail.com'];
+  if (process.env.SELLER_EMAIL && process.env.SELLER_EMAIL !== 'linkistai@gmail.com') {
+    adminRecipients.push(process.env.SELLER_EMAIL);
+  }
   const items = order.items || [];
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <hello@linkist.ai>',
-    to: process.env.SELLER_EMAIL,
+    from: 'Linkist UAE <onboarding@resend.dev>',
+    to: adminRecipients,
     subject: `New Order — AED ${total} — ${order.customer_name || 'Customer'}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;background:#0a0a0a;color:#fff;padding:32px;border-radius:8px;">
       <h2 style="color:#fff;margin-top:0;">New Order Alert</h2>
@@ -507,7 +551,7 @@ async function sendShippingEmail(order, items, trackingNumber) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <hello@linkist.ai>',
+    from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     reply_to: process.env.SELLER_EMAIL,
     subject: `Your order has shipped! — Linkist UAE`,
@@ -532,7 +576,7 @@ async function sendDeliveredEmail(order, items) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <hello@linkist.ai>',
+    from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     subject: `Your order has arrived! — Linkist UAE`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:0;">
@@ -689,6 +733,7 @@ app.post('/customer/register', async (req, res) => {
 
     if (error) throw error;
 
+    sendWelcomeEmail(customer).catch(e => console.error('Welcome email failed:', e.message));
     const token = makeToken(customer);
     res.status(201).json({ token, customer: { id: customer.id, name: customer.name, email: customer.email } });
   } catch (err) {
@@ -798,6 +843,29 @@ app.post('/customer/link-order', requireCustomer, async (req, res) => {
       .select('id').single();
     if (error) throw error;
     res.json({ linked: !!data, orderId: data?.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Cart sync ────────────────────────────────────────────────────
+
+app.get('/customer/cart', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.json({ items: [] });
+    const { data } = await supabase.from('customers').select('cart_data').eq('id', req.customer.customerId).single();
+    res.json({ items: data?.cart_data || [] });
+  } catch (err) {
+    res.json({ items: [] });
+  }
+});
+
+app.put('/customer/cart', requireCustomer, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!supabase) return res.json({ ok: true });
+    await supabase.from('customers').update({ cart_data: items || [] }).eq('id', req.customer.customerId);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

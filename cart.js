@@ -23,6 +23,7 @@ const Cart = {
   save(items) {
     localStorage.setItem('inl_cart', JSON.stringify(items));
     Cart.updateBadge();
+    Cart.syncToServer(items);
   },
   add(product, size, qty) {
     const items = Cart.get();
@@ -52,6 +53,7 @@ const Cart = {
   clear() {
     localStorage.removeItem('inl_cart');
     Cart.updateBadge();
+    Cart.syncToServer([]);
   },
   updateBadge() {
     document.querySelectorAll('.cart-count').forEach(el => {
@@ -61,6 +63,33 @@ const Cart = {
       void el.offsetWidth;
       if (n > 0) el.classList.add('bump');
     });
+  },
+  syncToServer(items) {
+    const token = localStorage.getItem('customer_token');
+    if (!token) return;
+    fetch('/customer/cart', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ items })
+    }).catch(() => {});
+  },
+  async loadFromServer() {
+    const token = localStorage.getItem('customer_token');
+    if (!token) return;
+    try {
+      const res = await fetch('/customer/cart', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (!res.ok) return;
+      const { items } = await res.json();
+      if (!items || !items.length) return;
+      // Merge server cart with local: server wins for items on both, local-only items preserved
+      const local = Cart.get();
+      const merged = [...items];
+      local.forEach(li => {
+        if (!merged.find(m => m.key === li.key)) merged.push(li);
+      });
+      localStorage.setItem('inl_cart', JSON.stringify(merged));
+      Cart.updateBadge();
+    } catch {}
   }
 };
 
@@ -142,8 +171,8 @@ function renderFooter() {
   <footer>
     <a href="index.html" class="footer-logo">${LOGO_IMG}</a>
     <div class="footer-tags">
-      <span class="footer-tag">#istandwithUAE</span>
-      <span class="footer-tag">#borninUAE</span>
+      <span class="footer-tag">#IstandwithUAE</span>
+      <span class="footer-tag">#BornInTheUAE</span>
     </div>
     <div class="footer-right">linkist.ai · April 2026<br>Limited Edition</div>
     <div class="footer-legal">
@@ -237,5 +266,8 @@ const PRODUCTS = [
 
 const SIZES = ['XS','S','M','L','XL','XXL'];
 
-// Init badge on load
-document.addEventListener('DOMContentLoaded', () => Cart.updateBadge());
+// Init badge and sync cart on load
+document.addEventListener('DOMContentLoaded', () => {
+  Cart.updateBadge();
+  Cart.loadFromServer();
+});

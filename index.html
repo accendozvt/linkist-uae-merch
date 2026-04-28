@@ -118,10 +118,11 @@
 /* PRODUCT CARD */
 .pcard {
   background:#111; border:1px solid #1e1e1e; border-radius:10px; overflow:hidden;
-  display:flex; flex-direction:column; text-decoration:none; color:var(--white);
+  display:flex; flex-direction:column; color:var(--white);
   transition:transform 0.3s, border-color 0.3s;
 }
 .pcard:hover { transform:translateY(-5px); border-color:rgba(255,255,255,0.12); }
+.pcard-img-link { display:block; text-decoration:none; color:inherit; }
 .pcard-img { position:relative; background:#0d0d0d; aspect-ratio:1/1; overflow:hidden; }
 .pcard-img img { width:100%; height:100%; object-fit:cover; transition:transform 0.5s; display:block; }
 .pcard:hover .pcard-img img { transform:scale(1.04); }
@@ -130,25 +131,40 @@
   background:#E53935; color:#fff; font-family:'Space Mono',monospace;
   font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em;
 }
-.pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
-.pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
+.pcard-info { padding:14px 16px 10px; display:flex; flex-direction:column; gap:6px; }
+.pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; color:var(--white); }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
-.pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; }
+.pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; color:var(--white); }
 .pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
-.pcard-cta {
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  background:rgba(255,255,255,0.06); border-radius:6px; padding:9px;
-  font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
-  transition:background 0.2s;
-}
-.pcard:hover .pcard-cta { background:rgba(255,255,255,0.12); }
-.pcard-soldout { opacity:0.6; pointer-events:auto; }
+.pcard-soldout { opacity:0.6; }
 .pcard-soldout:hover { transform:none; }
 .pcard-stock-warn {
   position:absolute; bottom:8px; left:8px; z-index:1;
   background:rgba(200,16,46,0.85); color:#fff;
   font-family:'Space Mono',monospace; font-size:9px;
   padding:3px 8px; border-radius:3px; letter-spacing:0.08em;
+}
+/* Quick-add panel */
+.pcard-quickadd { padding:0 12px 14px; }
+.pcard-qa-sizes { display:flex; gap:4px; flex-wrap:wrap; }
+.pcard-qa-sizes .sz { width:32px; height:32px; font-size:9px; }
+.pcard-qa-bottom { display:flex; gap:6px; margin-top:8px; align-items:center; }
+.pcard-qa-bottom .qty-wrap { flex-shrink:0; border-radius:6px; }
+.pcard-qa-bottom .qty-btn { width:30px; height:32px; font-size:14px; }
+.pcard-qa-bottom .qty-num { width:28px; font-size:12px; }
+.pcard-atc { flex:1; padding:8px 6px; font-size:10px; letter-spacing:0.06em; border-radius:6px; }
+.pcard-viewcart {
+  display:none; width:100%; margin-top:7px; padding:9px;
+  background:transparent; border:1px solid rgba(255,255,255,0.2); border-radius:6px;
+  color:var(--white); font-family:'Space Mono',monospace; font-size:10px;
+  letter-spacing:0.06em; cursor:pointer; transition:border-color 0.2s;
+  text-decoration:none; text-align:center;
+}
+.pcard-viewcart:hover { border-color:var(--white); }
+.pcard-soldout-label {
+  margin:0 12px 14px; padding:9px; text-align:center;
+  background:rgba(255,255,255,0.04); border-radius:6px;
+  font-family:'Space Mono',monospace; font-size:10px; color:#555;
 }
 
 @media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px} .collection{padding:0 40px 80px} }
@@ -185,8 +201,9 @@
   </h1>
 
   <p class="hero-sub">
-    When the skies over <strong>Al Maktoum</strong> shook, our office stood nearby.
-    We stayed. Because <strong>UAE is not just where we work</strong> — it's where Linkist was born.
+    When uncertainty came close, we stayed.<br>
+    Because the UAE is not just where we work.<br>
+    It is where <strong>Linkist was born.</strong>
   </p>
 
   <div class="hero-divider uae-divider"><span class="d-r"></span><span class="d-w"></span><span class="d-b"></span><span class="d-g"></span></div>
@@ -197,8 +214,8 @@
   </a>
 
   <div class="hero-hashtags">
-    <span>#istandwithUAE</span><span class="sep">·</span>
-    <span>#borninUAE</span><span class="sep">·</span>
+    <span>#IstandwithUAE</span><span class="sep">·</span>
+    <span>#BornInTheUAE</span><span class="sep">·</span>
     <span>linkist.ai</span>
   </div>
 </section>
@@ -207,11 +224,12 @@
 <div class="cause">
   <div>
     <span class="cause-label">Our Story</span>
-    <h2 class="cause-title">Born In UAE.<br>Built To Stay.</h2>
+    <h2 class="cause-title">Born in the UAE.<br>Built to Stay.</h2>
     <div class="cause-body">
-      <p>Linkist was founded in the UAE — a country that gave us opportunity, community, and purpose. When conflict touched the region near <strong>Al Maktoum International Airport</strong>, many chose to leave.</p>
-      <p>We didn't. Our team remained, our servers stayed live, and our commitment to this nation only deepened.</p>
-      <p><strong>"I Never Left"</strong> isn't just a statement on a shirt. It's the truth of who we are. 100% of proceeds go toward UAE community relief.</p>
+      <p>Linkist was founded in the UAE, a country that gave us opportunity, community, and purpose.</p>
+      <p>When uncertainty reached the region, we stayed.</p>
+      <p>Our team remained. Our platform stayed live. Our commitment to this nation deepened.</p>
+      <p><strong>"I Never Left"</strong> is not just a statement on a shirt. It is the truth of who we are.</p>
     </div>
   </div>
   <div class="stats">
@@ -245,25 +263,71 @@ function renderProductCard(p) {
   const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
   const soldOut = totalStock !== null && totalStock === 0;
   const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
+  const stock = p.stock || {};
+
+  const sizeBtns = SIZES.map(s => {
+    const qty = stock[s] !== undefined ? stock[s] : 999;
+    return qty === 0
+      ? `<button class="sz sold-out" disabled>${s}</button>`
+      : `<button class="sz" data-size="${s}" onclick="qaSize('${p.id}',this)">${s}</button>`;
+  }).join('');
+
   return `
-  <a href="${page}" class="pcard${soldOut ? ' pcard-soldout' : ''}">
-    <div class="pcard-img">
-      <img src="${image}" alt="${p.name}" loading="lazy"/>
-      ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
-      ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
-    </div>
-    <div class="pcard-info">
-      <div>
+  <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="pcard-${p.id}">
+    <a href="${page}" class="pcard-img-link">
+      <div class="pcard-img">
+        <img src="${image}" alt="${p.name}" loading="lazy"/>
+        ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+        ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
+      </div>
+      <div class="pcard-info">
         <div class="pcard-name">${p.name}</div>
         <div class="pcard-tag">${p.tag || ''}</div>
+        <div class="pcard-price">${p.price} <span>AED</span></div>
       </div>
-      <div class="pcard-price">${p.price} <span>AED</span></div>
-      <div class="pcard-cta">
-        ${soldOut ? 'Sold Out' : 'View & Buy'}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </div>
-    </div>
-  </a>`;
+    </a>
+    ${soldOut
+      ? `<div class="pcard-soldout-label">Sold Out</div>`
+      : `<div class="pcard-quickadd">
+          <div class="pcard-qa-sizes" id="qa-sizes-${p.id}">${sizeBtns}</div>
+          <div class="pcard-qa-bottom">
+            <div class="qty-wrap">
+              <button class="qty-btn" onclick="qaQty('${p.id}',-1)">−</button>
+              <span class="qty-num" id="qa-qty-${p.id}">1</span>
+              <button class="qty-btn" onclick="qaQty('${p.id}',1)">+</button>
+            </div>
+            <button class="btn-primary pcard-atc" onclick="qaAdd('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.price},'${image}')">ADD TO CART</button>
+          </div>
+          <a href="cart.html" class="pcard-viewcart" id="qa-vc-${p.id}">VIEW CART →</a>
+        </div>`
+    }
+  </div>`;
+}
+
+function qaSize(pid, btn) {
+  document.querySelectorAll(`#qa-sizes-${pid} .sz`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function qaQty(pid, delta) {
+  const el = document.getElementById(`qa-qty-${pid}`);
+  el.textContent = Math.max(1, Math.min(10, parseInt(el.textContent) + delta));
+}
+function qaAdd(pid, name, price, image) {
+  const activeSize = document.querySelector(`#qa-sizes-${pid} .sz.active`);
+  if (!activeSize) {
+    const sizesEl = document.getElementById(`qa-sizes-${pid}`);
+    sizesEl.style.outline = '1px solid #E53935';
+    sizesEl.style.borderRadius = '6px';
+    sizesEl.style.padding = '4px';
+    setTimeout(() => { sizesEl.style.outline = ''; sizesEl.style.padding = ''; }, 1500);
+    return;
+  }
+  const size = activeSize.dataset.size;
+  const qty = parseInt(document.getElementById(`qa-qty-${pid}`).textContent);
+  Cart.add({ id: pid, name, price, image }, size, qty);
+  showToast(`${name} (${size} × ${qty}) added!`);
+  const vc = document.getElementById(`qa-vc-${pid}`);
+  if (vc) vc.style.display = 'block';
 }
 
 const grid = document.getElementById('products-grid');
