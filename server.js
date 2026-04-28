@@ -55,6 +55,25 @@ function makeToken(customer) {
   );
 }
 
+// ── Email debug endpoint (open to anyone with the URL — remove after testing) ─
+
+app.get('/api/email-test', async (req, res) => {
+  if (!resend) return res.status(503).json({ ok: false, error: 'RESEND_API_KEY not set' });
+  const to = req.query.to;
+  if (!to) return res.status(400).json({ ok: false, error: 'Pass ?to=email@example.com in query' });
+  try {
+    const result = await resend.emails.send({
+      from: 'Linkist UAE <onboarding@resend.dev>',
+      to: String(to),
+      subject: 'Linkist email test',
+      html: '<p>If you see this, Resend is working from this server.</p>'
+    });
+    return res.json({ ok: !result.error, data: result.data || null, error: result.error || null });
+  } catch (err) {
+    return res.status(500).json({ ok: false, threw: true, message: err.message });
+  }
+});
+
 // ── Health check ────────────────────────────────────────────────
 
 app.get('/api/health', async (req, res) => {
@@ -362,6 +381,23 @@ app.post('/webhook', async (req, res) => {
 
 // ── Email helpers ───────────────────────────────────────────────
 
+// Resend SDK returns { data, error } and does NOT throw. Wrap to make errors actually surface.
+async function sendMail(payload) {
+  if (!resend) {
+    console.error('[email] resend not configured (RESEND_API_KEY missing)');
+    throw new Error('Email service not configured');
+  }
+  const result = await resend.emails.send(payload);
+  if (result?.error) {
+    const errStr = JSON.stringify(result.error);
+    console.error('[email] Resend rejected:', errStr, '— payload to:', payload.to, 'subject:', payload.subject);
+    throw new Error(`Resend error: ${result.error.message || errStr}`);
+  }
+  console.log('[email] sent OK id=', result?.data?.id, 'to=', payload.to, 'subject=', payload.subject);
+  return result.data;
+}
+
+
 function buyerEmailHtml(order, items) {
   const itemRows = items.map(item => `
     <tr>
@@ -449,7 +485,7 @@ function buyerEmailHtml(order, items) {
 
 async function sendWelcomeEmail(customer) {
   if (!resend || !customer.email) return;
-  await resend.emails.send({
+  await sendMail({
     from: 'Linkist UAE <onboarding@resend.dev>',
     to: customer.email,
     subject: 'Welcome to Linkist UAE — I Never Left',
@@ -506,7 +542,7 @@ async function sendBuyerEmail(order) {
   } catch (e) {
     console.error('Invoice PDF generation failed (email will send without attachment):', e.message);
   }
-  await resend.emails.send(payload);
+  await sendMail(payload);
 }
 
 async function sendSellerEmail(order) {
@@ -518,7 +554,7 @@ async function sendSellerEmail(order) {
   const items = order.items || [];
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
-  await resend.emails.send({
+  await sendMail({
     from: 'Linkist UAE <onboarding@resend.dev>',
     to: adminRecipients,
     subject: `New Order — AED ${total} — ${order.customer_name || 'Customer'}`,
@@ -552,7 +588,7 @@ async function sendSellerEmail(order) {
 async function sendShippingEmail(order, items, trackingNumber) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
-  await resend.emails.send({
+  await sendMail({
     from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     reply_to: process.env.SELLER_EMAIL,
@@ -577,7 +613,7 @@ async function sendShippingEmail(order, items, trackingNumber) {
 async function sendDeliveredEmail(order, items) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
-  await resend.emails.send({
+  await sendMail({
     from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     subject: `Your order has arrived! — Linkist UAE`,
