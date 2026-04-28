@@ -52,6 +52,28 @@ function makeToken(customer) {
   );
 }
 
+// ── Health check ────────────────────────────────────────────────
+
+app.get('/api/health', async (req, res) => {
+  let dbOk = false;
+  let dbError = null;
+  if (supabase) {
+    const { error } = await supabase.from('products').select('id').limit(1);
+    dbOk = !error;
+    dbError = error?.message || null;
+  }
+  res.json({
+    ok: dbOk,
+    supabase_configured: !!process.env.SUPABASE_URL,
+    supabase_connected: dbOk,
+    supabase_error: dbError,
+    stripe_configured: !!process.env.STRIPE_SECRET_KEY,
+    webhook_secret_configured: !!process.env.STRIPE_WEBHOOK_SECRET,
+    resend_configured: !!process.env.RESEND_API_KEY,
+    admin_configured: !!process.env.ADMIN_EMAIL,
+  });
+});
+
 // ── Products ────────────────────────────────────────────────────
 
 app.get('/products', async (req, res) => {
@@ -177,10 +199,19 @@ app.post('/webhook', async (req, res) => {
       };
 
       if (supabase) {
-        const { data: order, error: orderErr } = await supabase
+        // Try with phone; if column doesn't exist yet, retry without it
+        let { data: order, error: orderErr } = await supabase
           .from('orders').insert(orderData).select().single();
 
-        if (orderErr) throw orderErr;
+        if (orderErr) {
+          const { customer_phone, ...dataWithoutPhone } = orderData;
+          const retry = await supabase.from('orders').insert(dataWithoutPhone).select().single();
+          if (retry.error) throw retry.error;
+          order = retry.data;
+          orderErr = null;
+        }
+
+        if (!order) throw new Error('Order insert returned no data');
 
         if (items.length) {
           await supabase.from('order_items').insert(
