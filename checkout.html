@@ -3,115 +3,127 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Checkout — I Never Left · Linkist</title>
+<title>Checkout — I Never Left T-Shirt | Linkist UAE</title>
+<meta name="description" content="Secure checkout for the I Never Left T-Shirt by Linkist UAE. Limited edition April 2026 drop.">
+<link rel="icon" type="image/png" href="/images/fav.png">
 <link rel="stylesheet" href="style.css">
 <style>
-.co-wrap { max-width: 1060px; margin: 0 auto; padding: 100px 40px 80px; }
-.co-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(32px,5vw,56px); margin-bottom: 40px; }
-/* Auth gate */
-.co-auth-gate {
-  max-width: 480px; margin: 0 auto; text-align: center; padding: 20px 0 40px;
+.co-wrap { max-width: 960px; margin: 0 auto; padding: 96px 40px 80px; }
+
+/* Steps indicator */
+.co-steps {
+  display: flex; align-items: center; gap: 0;
+  margin-bottom: 36px; max-width: 360px;
 }
-.co-auth-icon {
-  width: 64px; height: 64px; border-radius: 50%;
-  background: rgba(200,16,46,0.1); border: 1px solid rgba(200,16,46,0.25);
-  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+.co-step {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase; color: #444;
 }
-.co-auth-heading { font-family: 'Bebas Neue', sans-serif; font-size: 28px; margin-bottom: 8px; }
-.co-auth-sub { font-size: 13px; color: #888; line-height: 1.6; margin-bottom: 32px; }
-.co-auth-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.co-auth-card {
-  background: #111; border: 1px solid #1e1e1e; border-radius: 12px;
-  padding: 24px 20px; text-align: left; transition: border-color 0.2s;
+.co-step.active { color: var(--white); }
+.co-step.done { color: #007A3D; }
+.co-step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid #333; display: flex; align-items: center;
+  justify-content: center; font-size: 10px; font-weight: 700;
+  flex-shrink: 0;
 }
-.co-auth-card:hover { border-color: #333; }
-.co-auth-card-label {
-  font-family: 'Space Mono', monospace; font-size: 9px; color: #555;
-  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
-}
-.co-auth-card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-.co-auth-card-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 16px; }
-@media(max-width: 480px) { .co-auth-cards { grid-template-columns: 1fr; } }
-.co-layout { display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: start; }
-.co-form-card {
-  background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 32px;
-}
+.co-step.active .co-step-num { background: var(--white); color: var(--black); border-color: var(--white); }
+.co-step.done .co-step-num { background: #007A3D; border-color: #007A3D; color: #fff; }
+.co-step-line { flex: 1; height: 1px; background: #222; margin: 0 12px; min-width: 32px; }
+
+/* Layout */
+.co-layout { display: grid; grid-template-columns: 1fr 340px; gap: 32px; align-items: start; }
+
+/* Form card */
+.co-card { background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 28px; margin-bottom: 0; }
 .co-section-title {
   font-family: 'Space Mono', monospace; font-size: 10px; color: #555;
-  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 18px;
 }
-.field { margin-bottom: 16px; }
+.co-section-title + .co-section-title { margin-top: 24px; }
+.field { margin-bottom: 14px; }
 .field label {
   display: block; font-family: 'Space Mono', monospace; font-size: 9px;
-  letter-spacing: 2px; color: #555; text-transform: uppercase; margin-bottom: 7px;
+  letter-spacing: 2px; color: #555; text-transform: uppercase; margin-bottom: 6px;
 }
 .field input, .field select {
   width: 100%; background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px;
   color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px;
-  padding: 12px 14px; outline: none; transition: border-color 0.2s;
+  padding: 11px 13px; outline: none; transition: border-color 0.2s;
   -webkit-appearance: none; appearance: none;
 }
 .field input:focus, .field select:focus { border-color: #555; }
-.field input.error, .field select.error { border-color: var(--accent); }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.save-row {
-  display: flex; align-items: center; gap: 10px; margin: 20px 0;
-  font-family: 'Space Mono', monospace; font-size: 10px; color: #555; letter-spacing: 1px;
-  cursor: pointer; user-select: none;
+.field input.err, .field select.err { border-color: var(--accent); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.co-save-row {
+  display: flex; align-items: center; gap: 10px; margin: 18px 0 4px;
+  font-family: 'Space Mono', monospace; font-size: 10px; color: #555;
+  letter-spacing: 1px; cursor: pointer; user-select: none;
 }
-.save-row input[type=checkbox] {
-  width: 16px; height: 16px; accent-color: var(--green); cursor: pointer;
-  flex-shrink: 0; margin: 0;
-}
-.co-divider { border: none; border-top: 1px solid #1e1e1e; margin: 24px 0; }
+.co-save-row input[type=checkbox] { width:16px; height:16px; accent-color:var(--green); cursor:pointer; flex-shrink:0; margin:0; }
 .co-error {
   background: rgba(229,57,53,0.1); border: 1px solid rgba(229,57,53,0.3);
   border-radius: 8px; color: #E53935; font-size: 13px;
-  padding: 12px 14px; margin-bottom: 16px; display: none;
+  padding: 11px 14px; margin-bottom: 14px; display: none;
 }
 
 /* Order summary sidebar */
-.co-summary {
-  background: #111; border: 1px solid #1e1e1e; border-radius: 14px;
-  padding: 28px; position: sticky; top: 88px;
-}
-.co-sum-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; margin-bottom: 20px; }
-.co-sum-items { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-.co-sum-item {
-  display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center;
-}
-.co-sum-img {
-  width: 52px; height: 52px; border-radius: 6px; background: #0d0d0d; overflow: hidden;
-}
+.co-summary { background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 24px; position: sticky; top: 84px; }
+.co-sum-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; margin-bottom: 16px; }
+.co-sum-items { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.co-sum-item { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; }
+.co-sum-img { width: 48px; height: 48px; border-radius: 6px; background: #0d0d0d; overflow: hidden; }
 .co-sum-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.co-sum-name { font-size: 13px; font-weight: 600; }
-.co-sum-meta { font-family: 'Space Mono', monospace; font-size: 10px; color: #555; margin-top: 2px; }
-.co-sum-price { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
-.co-sum-total {
-  display: flex; justify-content: space-between; align-items: center;
-  padding-top: 16px; border-top: 1px solid #1e1e1e;
-}
-.co-sum-total-label { font-size: 13px; font-weight: 600; color: #888; }
-.co-sum-total-val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; }
-.co-sum-note {
-  font-family: 'Space Mono', monospace; font-size: 9px; color: #444;
-  letter-spacing: 0.05em; line-height: 1.6; text-align: center; margin-top: 12px;
-}
-.co-empty { text-align: center; padding: 60px 24px; color: #555; }
+.co-sum-name { font-size: 12px; font-weight: 600; }
+.co-sum-meta { font-family: 'Space Mono', monospace; font-size: 9px; color: #555; margin-top: 2px; }
+.co-sum-price { font-family: 'Bebas Neue', sans-serif; font-size: 18px; white-space: nowrap; }
+.co-sum-divider { border: none; border-top: 1px solid #1e1e1e; margin: 12px 0; }
+.co-sum-total { display: flex; justify-content: space-between; align-items: baseline; }
+.co-sum-total-label { font-size: 12px; color: #666; }
+.co-sum-total-val { font-family: 'Bebas Neue', sans-serif; font-size: 26px; }
 
-@media(max-width: 768px) {
-  .co-wrap { padding: 80px 20px 60px; }
-  .co-layout { grid-template-columns: 1fr; }
-  .co-summary { position: relative; top: 0; order: -1; }
+/* Auth gate */
+.co-auth {
+  background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 40px 32px;
+}
+.co-auth-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: rgba(200,16,46,0.1); border: 1px solid rgba(200,16,46,0.25);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+}
+.co-auth-heading { font-family: 'Bebas Neue', sans-serif; font-size: 30px; text-align: center; margin-bottom: 8px; }
+.co-auth-sub { font-size: 13px; color: #888; line-height: 1.6; text-align: center; margin-bottom: 28px; }
+.co-auth-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.co-auth-card { background: #0a0a0a; border: 1px solid #1e1e1e; border-radius: 10px; padding: 20px 16px; transition: border-color 0.2s; }
+.co-auth-card:hover { border-color: #333; }
+.co-auth-label { font-family: 'Space Mono', monospace; font-size: 9px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+.co-auth-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.co-auth-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 14px; }
+
+/* Step 2 review */
+.co-review-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid #1a1a1a; }
+.co-review-row:last-child { border-bottom: none; }
+.co-review-label { font-family: 'Space Mono', monospace; font-size: 9px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+.co-review-val { font-size: 13px; color: #ccc; text-align: right; max-width: 60%; }
+.co-back-link { font-family: 'Space Mono', monospace; font-size: 10px; color: #555; cursor: pointer; background: none; border: none; letter-spacing: 1px; padding: 0; margin-bottom: 20px; display: flex; align-items: center; gap: 6px; }
+.co-back-link:hover { color: #888; }
+
+@media(max-width: 760px) {
+  .co-wrap { padding: 84px 16px 60px; }
+  .co-layout { grid-template-columns: 1fr; gap: 20px; }
+  .co-summary { position: relative; top: 0; }
   .field-row { grid-template-columns: 1fr; }
+  .co-auth-cards { grid-template-columns: 1fr; }
+  .co-steps { max-width: 100%; }
 }
 </style>
 </head>
 <body>
 <div id="nav-root"></div>
 <div class="co-wrap">
-  <h1 class="co-title">Checkout</h1>
-  <div id="co-main"></div>
+  <div id="co-steps-root"></div>
+  <div id="co-body"></div>
 </div>
 <div id="footer-root"></div>
 
@@ -121,263 +133,302 @@ document.getElementById('nav-root').innerHTML = renderNav();
 document.getElementById('footer-root').innerHTML = renderFooter();
 
 const cartItems = Cart.get();
-if (!cartItems.length) {
-  window.location.href = 'cart.html';
-}
+if (!cartItems.length) window.location.href = 'cart.html';
 
 const customer = getCustomer();
 
 const EMIRATES = ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'];
 
-function renderAuthGate() {
+// State
+let currentStep = 1; // 1 = address, 2 = review+pay
+let formData = {};
+
+// ── Helpers ──────────────────────────────────────────────────
+function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+function summaryHTML() {
   const total = Cart.total();
-  const summaryHTML = cartItems.map(item => `
-    <div class="co-sum-item">
-      <div class="co-sum-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
-      <div>
-        <div class="co-sum-name">${escHtml(item.name)}</div>
-        <div class="co-sum-meta">SIZE: ${item.size} &nbsp;·&nbsp; ×${item.qty}</div>
+  return `
+    <div class="co-summary">
+      <div class="co-sum-title">Your Order</div>
+      <div class="co-sum-items">
+        ${cartItems.map(item => `
+          <div class="co-sum-item">
+            <div class="co-sum-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
+            <div>
+              <div class="co-sum-name">${escHtml(item.name)}</div>
+              <div class="co-sum-meta">SIZE: ${item.size} · ×${item.qty}</div>
+            </div>
+            <div class="co-sum-price">${item.price * item.qty}<span style="font-family:'DM Sans',sans-serif;font-size:10px;color:#555;"> AED</span></div>
+          </div>`).join('')}
       </div>
-      <div class="co-sum-price">${item.price * item.qty}<span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;"> AED</span></div>
-    </div>
-  `).join('');
-
-  document.getElementById('co-main').innerHTML = `
-    <div class="co-layout">
-      <div class="co-auth-gate">
-        <div class="co-auth-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-        <h2 class="co-auth-heading">Sign in to continue</h2>
-        <p class="co-auth-sub">Create an account or log in to complete your purchase.<br>Your order and shipping details will be saved.</p>
-        <div class="co-auth-cards">
-          <div class="co-auth-card">
-            <div class="co-auth-card-label">New here?</div>
-            <div class="co-auth-card-title">Create Account</div>
-            <div class="co-auth-card-desc">Takes 30 seconds. Track orders and save your shipping details.</div>
-            <a href="account-login.html?tab=register&redirect=checkout.html" class="btn-primary" style="display:flex;justify-content:center;font-size:13px;padding:11px 20px;">Create Account →</a>
-          </div>
-          <div class="co-auth-card">
-            <div class="co-auth-card-label">Have an account?</div>
-            <div class="co-auth-card-title">Sign In</div>
-            <div class="co-auth-card-desc">Log in to pre-fill your details and complete checkout faster.</div>
-            <a href="account-login.html?redirect=checkout.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:13px;padding:11px 20px;">Sign In →</a>
-          </div>
-        </div>
+      <hr class="co-sum-divider"/>
+      <div class="co-sum-total">
+        <span class="co-sum-total-label">Total</span>
+        <span class="co-sum-total-val">${total} <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;">AED</span></span>
       </div>
-
-      <div class="co-summary">
-        <div class="co-sum-title">Your Order</div>
-        <div class="co-sum-items">${summaryHTML}</div>
-        <div class="co-sum-total">
-          <span class="co-sum-total-label">Total</span>
-          <span class="co-sum-total-val">${total} <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;">AED</span></span>
-        </div>
-        <a href="cart.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:12px;margin-top:16px;">← Edit Cart</a>
-      </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function renderPage() {
-  const total = Cart.total();
-  const summaryHTML = cartItems.map(item => `
-    <div class="co-sum-item">
-      <div class="co-sum-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
-      <div>
-        <div class="co-sum-name">${escHtml(item.name)}</div>
-        <div class="co-sum-meta">SIZE: ${item.size} &nbsp;·&nbsp; ×${item.qty}</div>
-      </div>
-      <div class="co-sum-price">${item.price * item.qty}<span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;"> AED</span></div>
+function stepsHTML(active) {
+  const s = (n) => active > n ? 'done' : active === n ? 'active' : '';
+  return `<div class="co-steps">
+    <div class="co-step ${s(1)}">
+      <div class="co-step-num">${active > 1 ? '✓' : '1'}</div>
+      <span>Delivery</span>
     </div>
-  `).join('');
+    <div class="co-step-line"></div>
+    <div class="co-step ${s(2)}">
+      <div class="co-step-num">2</div>
+      <span>Payment</span>
+    </div>
+  </div>`;
+}
 
-  const emiratesOptions = EMIRATES.map(e => `<option value="${e}">${e}</option>`).join('');
-  const saveCheckbox = customer
-    ? `<label class="save-row"><input type="checkbox" id="co-save-addr" checked/> Save shipping details to my account</label>`
-    : '';
-
-  document.getElementById('co-main').innerHTML = `
+// ── AUTH GATE (guest) ─────────────────────────────────────────
+function renderAuthGate() {
+  document.getElementById('co-steps-root').innerHTML = '';
+  document.getElementById('co-body').innerHTML = `
     <div class="co-layout">
       <div>
-        <div class="co-form-card">
-          <div class="co-section-title">Contact Details</div>
+        <div class="co-auth">
+          <div class="co-auth-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <h2 class="co-auth-heading">Sign in to continue</h2>
+          <p class="co-auth-sub">Create an account or log in to complete your purchase.<br>Your order and shipping details will be saved.</p>
+          <div class="co-auth-cards">
+            <div class="co-auth-card">
+              <div class="co-auth-label">New here?</div>
+              <div class="co-auth-title">Create Account</div>
+              <div class="co-auth-desc">Takes 30 seconds. Track your order and save your address for next time.</div>
+              <a href="account-login.html?tab=register&redirect=checkout.html" class="btn-primary" style="width:100%;justify-content:center;font-size:13px;padding:11px 16px;">Create Account →</a>
+            </div>
+            <div class="co-auth-card">
+              <div class="co-auth-label">Have an account?</div>
+              <div class="co-auth-title">Sign In</div>
+              <div class="co-auth-desc">Log in to pre-fill your details and complete checkout faster.</div>
+              <a href="account-login.html?redirect=checkout.html" class="btn-secondary" style="width:100%;justify-content:center;font-size:13px;padding:11px 16px;">Sign In →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${summaryHTML()}
+    </div>`;
+}
+
+// ── STEP 1: Delivery Details ──────────────────────────────────
+function renderStep1() {
+  currentStep = 1;
+  document.getElementById('co-steps-root').innerHTML = stepsHTML(1);
+  const emiratesOpts = EMIRATES.map(e => `<option value="${e}"${formData.state===e?' selected':''}>${e}</option>`).join('');
+  document.getElementById('co-body').innerHTML = `
+    <div class="co-layout">
+      <div>
+        <div class="co-card">
           <div class="co-error" id="co-error"></div>
-          <div class="field">
-            <label>Full Name *</label>
-            <input type="text" id="co-name" placeholder="Your full name" autocomplete="name"/>
+          <div class="co-section-title">Contact Details</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Full Name *</label>
+              <input type="text" id="co-name" value="${escHtml(formData.name||'')}" placeholder="Your full name" autocomplete="name"/>
+            </div>
+            <div class="field">
+              <label>Phone *</label>
+              <input type="tel" id="co-phone" value="${escHtml(formData.phone||'')}" placeholder="+971 50 000 0000" autocomplete="tel"/>
+            </div>
           </div>
           <div class="field">
             <label>Email Address *</label>
-            <input type="email" id="co-email" placeholder="you@example.com" autocomplete="email"/>
+            <input type="email" id="co-email" value="${escHtml(formData.email||'')}" placeholder="you@example.com" autocomplete="email"/>
           </div>
-          <div class="field">
-            <label>Phone Number *</label>
-            <input type="tel" id="co-phone" placeholder="+971 50 000 0000" autocomplete="tel"/>
-          </div>
-          <hr class="co-divider"/>
-          <div class="co-section-title">Shipping Address</div>
+
+          <div class="co-section-title" style="margin-top:24px;">Shipping Address</div>
           <div class="field">
             <label>Address Line 1 *</label>
-            <input type="text" id="co-line1" placeholder="Building, street, area" autocomplete="address-line1"/>
+            <input type="text" id="co-line1" value="${escHtml(formData.line1||'')}" placeholder="Building, street, area" autocomplete="address-line1"/>
           </div>
           <div class="field">
             <label>Address Line 2</label>
-            <input type="text" id="co-line2" placeholder="Apartment, floor, unit (optional)" autocomplete="address-line2"/>
+            <input type="text" id="co-line2" value="${escHtml(formData.line2||'')}" placeholder="Apartment, floor, unit (optional)" autocomplete="address-line2"/>
           </div>
           <div class="field-row">
             <div class="field">
-              <label>Emirate / City *</label>
+              <label>Emirate *</label>
               <select id="co-state">
                 <option value="">Select Emirate</option>
-                ${emiratesOptions}
-                <option value="Other">Other</option>
+                ${emiratesOpts}
+                <option value="Other"${formData.state==='Other'?' selected':''}>Other</option>
               </select>
             </div>
             <div class="field">
               <label>City / Area</label>
-              <input type="text" id="co-city" placeholder="e.g. Downtown, JLT" autocomplete="address-level2"/>
+              <input type="text" id="co-city" value="${escHtml(formData.city||'')}" placeholder="e.g. Downtown" autocomplete="address-level2"/>
             </div>
           </div>
           <div class="field-row">
             <div class="field">
               <label>Postal Code</label>
-              <input type="text" id="co-postal" placeholder="Optional" autocomplete="postal-code"/>
+              <input type="text" id="co-postal" value="${escHtml(formData.postal||'')}" placeholder="Optional" autocomplete="postal-code"/>
             </div>
             <div class="field">
               <label>Country *</label>
-              <input type="text" id="co-country" placeholder="UAE" value="United Arab Emirates" autocomplete="country-name"/>
+              <input type="text" id="co-country" value="${escHtml(formData.country||'United Arab Emirates')}" placeholder="UAE" autocomplete="country-name"/>
             </div>
           </div>
-          ${saveCheckbox}
+          <label class="co-save-row">
+            <input type="checkbox" id="co-save" ${formData.saveAddress!==false?'checked':''}/> Save address to my account
+          </label>
+        </div>
+        <div style="margin-top:16px;">
+          <button class="btn-primary full" onclick="continueToPayment()">
+            Continue to Payment
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
         </div>
       </div>
+      ${summaryHTML()}
+    </div>`;
+}
 
-      <div class="co-summary">
-        <div class="co-sum-title">Your Order</div>
-        <div class="co-sum-items">${summaryHTML}</div>
-        <div class="co-sum-total">
-          <span class="co-sum-total-label">Total</span>
-          <span class="co-sum-total-val">${total} <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;">AED</span></span>
-        </div>
-        <button class="btn-primary full" id="co-pay-btn" onclick="submitCheckout()" style="margin-top:20px;width:100%;">
-          Pay with Card
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+// ── STEP 2: Review + Pay ──────────────────────────────────────
+function renderStep2() {
+  currentStep = 2;
+  document.getElementById('co-steps-root').innerHTML = stepsHTML(2);
+  const addr = [formData.line1, formData.line2, formData.city||formData.state, formData.state, formData.postal, formData.country].filter(Boolean).join(', ');
+  const total = Cart.total();
+  document.getElementById('co-body').innerHTML = `
+    <div class="co-layout">
+      <div>
+        <button class="co-back-link" onclick="renderStep1()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Edit delivery details
         </button>
-        <p class="co-sum-note">Secure payment via Stripe<br>All major cards accepted</p>
-        <a href="cart.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:12px;margin-top:10px;">← Edit Cart</a>
-      </div>
-    </div>
-  `;
+        <div class="co-card">
+          <div class="co-section-title">Delivery Details</div>
+          <div class="co-review-row"><span class="co-review-label">Name</span><span class="co-review-val">${escHtml(formData.name)}</span></div>
+          <div class="co-review-row"><span class="co-review-label">Email</span><span class="co-review-val">${escHtml(formData.email)}</span></div>
+          <div class="co-review-row"><span class="co-review-label">Phone</span><span class="co-review-val">${escHtml(formData.phone)}</span></div>
+          <div class="co-review-row"><span class="co-review-label">Ship To</span><span class="co-review-val">${escHtml(addr)}</span></div>
+        </div>
 
-  // Pre-fill if logged in
-  if (customer) {
-    prefillFromProfile();
+        <div class="co-card" style="margin-top:14px;">
+          <div class="co-error" id="co-pay-error"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div>
+              <div class="co-section-title" style="margin-bottom:4px;">Order Total</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;">${total} <span style="font-family:'DM Sans',sans-serif;font-size:16px;color:#888;">AED</span></div>
+            </div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <button class="btn-primary full" id="co-pay-btn" onclick="submitPayment()" style="font-size:15px;padding:16px;">
+            Pay AED ${total} with Card
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </button>
+          <p style="font-family:'Space Mono',monospace;font-size:9px;color:#444;text-align:center;margin-top:12px;letter-spacing:0.05em;line-height:1.6;">Secure payment via Stripe · All major cards accepted<br>You will be redirected to Stripe's secure payment page</p>
+        </div>
+      </div>
+      ${summaryHTML()}
+    </div>`;
+}
+
+// ── Validation & Navigation ───────────────────────────────────
+function continueToPayment() {
+  const errEl = document.getElementById('co-error');
+  errEl.style.display = 'none';
+
+  const name = document.getElementById('co-name').value.trim();
+  const phone = document.getElementById('co-phone').value.trim();
+  const email = document.getElementById('co-email').value.trim();
+  const line1 = document.getElementById('co-line1').value.trim();
+  const line2 = document.getElementById('co-line2').value.trim();
+  const state = document.getElementById('co-state').value;
+  const city = document.getElementById('co-city').value.trim();
+  const postal = document.getElementById('co-postal').value.trim();
+  const country = document.getElementById('co-country').value.trim();
+  const saveAddress = document.getElementById('co-save').checked;
+
+  if (!name) return showErr('co-error', 'Full name is required.');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('co-error', 'A valid email address is required.');
+  if (!phone) return showErr('co-error', 'Phone number is required for delivery coordination.');
+  if (!line1) return showErr('co-error', 'Address line 1 is required.');
+  if (!state) return showErr('co-error', 'Please select your emirate.');
+  if (!country) return showErr('co-error', 'Country is required.');
+
+  formData = { name, phone, email, line1, line2, state, city, postal, country, saveAddress };
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  renderStep2();
+}
+
+async function submitPayment() {
+  const btn = document.getElementById('co-pay-btn');
+  btn.textContent = 'Redirecting to Stripe…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/pre-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: cartItems,
+        customer: {
+          name: formData.name, email: formData.email, phone: formData.phone,
+          line1: formData.line1, line2: formData.line2 || null,
+          city: formData.city || formData.state,
+          state: formData.state,
+          postal: formData.postal || null,
+          country: formData.country,
+          customerId: customer?.customerId || null,
+          saveAddress: formData.saveAddress,
+        }
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Checkout failed');
+    if (data.url) { window.location.href = data.url; return; }
+    throw new Error('No payment URL returned');
+  } catch(err) {
+    showErr('co-pay-error', err.message);
+    btn.innerHTML = `Pay AED ${Cart.total()} with Card <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`;
+    btn.disabled = false;
   }
 }
 
-async function prefillFromProfile() {
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── Pre-fill from profile ─────────────────────────────────────
+async function prefillProfile() {
   try {
     const res = await fetch('/customer/me', {
       headers: { 'Authorization': 'Bearer ' + localStorage.getItem('customer_token') }
     });
     if (!res.ok) return;
-    const data = await res.json();
-    if (data.name) document.getElementById('co-name').value = data.name;
-    if (data.email) document.getElementById('co-email').value = data.email;
-    if (data.phone) document.getElementById('co-phone').value = data.phone;
-    if (data.address_line1) document.getElementById('co-line1').value = data.address_line1;
-    if (data.address_line2) document.getElementById('co-line2').value = data.address_line2;
-    if (data.address_city) document.getElementById('co-city').value = data.address_city;
-    if (data.address_state) {
-      const sel = document.getElementById('co-state');
-      const opt = [...sel.options].find(o => o.value === data.address_state);
-      if (opt) sel.value = data.address_state;
-      else { sel.value = 'Other'; document.getElementById('co-city').value = data.address_state; }
-    }
-    if (data.address_postal) document.getElementById('co-postal').value = data.address_postal;
-    if (data.address_country) document.getElementById('co-country').value = data.address_country;
+    const d = await res.json();
+    formData = {
+      name: d.name || '',
+      email: d.email || '',
+      phone: d.phone || '',
+      line1: d.address_line1 || '',
+      line2: d.address_line2 || '',
+      city: d.address_city || '',
+      state: d.address_state || '',
+      postal: d.address_postal || '',
+      country: d.address_country || 'United Arab Emirates',
+      saveAddress: true,
+    };
   } catch(e) { /* non-critical */ }
 }
 
-async function submitCheckout() {
-  const errEl = document.getElementById('co-error');
-  errEl.style.display = 'none';
-  const btn = document.getElementById('co-pay-btn');
-
-  const name = document.getElementById('co-name').value.trim();
-  const email = document.getElementById('co-email').value.trim();
-  const phone = document.getElementById('co-phone').value.trim();
-  const line1 = document.getElementById('co-line1').value.trim();
-  const line2 = document.getElementById('co-line2').value.trim();
-  const state = document.getElementById('co-state').value.trim();
-  const city = document.getElementById('co-city').value.trim();
-  const postal = document.getElementById('co-postal').value.trim();
-  const country = document.getElementById('co-country').value.trim();
-  const saveAddr = document.getElementById('co-save-addr')?.checked ?? false;
-
-  // Validation
-  if (!name) return showErr('Full name is required.');
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('A valid email address is required.');
-  if (!phone) return showErr('Phone number is required for delivery coordination.');
-  if (!line1) return showErr('Address line 1 is required.');
-  if (!state) return showErr('Please select your emirate.');
-  if (!country) return showErr('Country is required.');
-
-  btn.textContent = 'Redirecting to payment...';
-  btn.disabled = true;
-
-  try {
-    const payload = {
-      items: cartItems,
-      customer: {
-        name, email, phone,
-        line1, line2: line2 || null,
-        city: city || state,
-        state: state,
-        postal: postal || null,
-        country,
-        customerId: customer?.customerId || null,
-        saveAddress: saveAddr,
-      }
-    };
-
-    const res = await fetch('/pre-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Checkout failed');
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      throw new Error('No payment URL returned');
-    }
-  } catch(err) {
-    showErr(err.message);
-    btn.textContent = 'Pay with Card';
-    btn.disabled = false;
-  }
-}
-
-function showErr(msg) {
-  const el = document.getElementById('co-error');
-  el.textContent = msg;
-  el.style.display = 'block';
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// Show auth gate for guests, checkout form for logged-in customers
-if (customer) {
-  renderPage();
-} else {
+// ── Bootstrap ─────────────────────────────────────────────────
+if (!customer) {
   renderAuthGate();
+} else {
+  prefillProfile().then(() => renderStep1());
 }
 </script>
 </body>

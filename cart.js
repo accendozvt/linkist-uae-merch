@@ -87,30 +87,63 @@ const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 
 const LOGO_IMG = `<img src="/images/linkist-white.png" alt="Linkist" style="height:28px;width:auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${LOGO_SVG}</span>`;
 
 // ── NAV HTML ──────────────────────────────────────────────────
+const CART_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>`;
+
 function renderNav(activePage) {
   const customer = getCustomer();
-  const authHtml = customer
-    ? `<a href="account.html" class="nav-link" style="color:var(--white)">Hi ${customer.name ? customer.name.split(' ')[0] : 'You'}</a>
+  const firstName = customer?.name?.split(' ')[0] || 'You';
+
+  // Desktop links
+  const desktopAuth = customer
+    ? `<a href="account.html" class="nav-link" style="color:var(--white)">Hi ${firstName}</a>
        <a href="account.html" class="nav-link">My Orders</a>
        <a href="#" class="nav-link" onclick="logout();return false;" style="color:var(--accent)">Logout</a>`
     : `<a href="account-login.html" class="nav-link">Login</a>`;
 
-  return `<nav>
+  // Mobile drawer links
+  const drawerAuth = customer
+    ? `<a href="account.html">Hi ${firstName}</a>
+       <a href="account.html">My Orders</a>
+       <button class="drawer-logout" onclick="logout()">Logout</button>`
+    : `<a href="account-login.html">Login</a>`;
+
+  return `<nav id="main-nav">
     <a href="index.html" class="nav-logo">${LOGO_IMG}</a>
     <div class="nav-right">
       <a href="collection.html" class="nav-link nav-collection-link ${activePage==='collection'?'active':''}">Collection</a>
-      ${authHtml}
-      <a href="cart.html" class="cart-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2">
-          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 01-8 0"/>
-        </svg>
-        <span>CART</span>
-        <div class="cart-count">0</div>
-      </a>
+      ${desktopAuth}
+      <a href="cart.html" class="cart-btn">${CART_ICON}<span>CART</span><div class="cart-count">0</div></a>
     </div>
-  </nav>`;
+    <div class="nav-right" style="display:none" id="nav-mobile-controls">
+      <a href="cart.html" class="cart-btn">${CART_ICON}<div class="cart-count">0</div></a>
+      <button class="nav-hamburger" onclick="toggleNavDrawer()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="nav-drawer" id="nav-drawer">
+    <a href="collection.html">Collection</a>
+    ${drawerAuth}
+  </div>
+  <script>
+    (function(){
+      var mq = window.matchMedia('(max-width:768px)');
+      function applyMq(e) {
+        var mc = document.getElementById('nav-mobile-controls');
+        if (mc) mc.style.display = e.matches ? 'flex' : 'none';
+      }
+      mq.addEventListener ? mq.addEventListener('change', applyMq) : mq.addListener(applyMq);
+      applyMq(mq);
+    })();
+  </script>`;
+}
+
+function toggleNavDrawer() {
+  var nav = document.getElementById('main-nav');
+  var drawer = document.getElementById('nav-drawer');
+  if (!nav || !drawer) return;
+  nav.classList.toggle('menu-open');
+  drawer.classList.toggle('open');
 }
 
 // ── FOOTER HTML ───────────────────────────────────────────────
@@ -123,6 +156,12 @@ function renderFooter() {
       <span class="footer-tag">#borninUAE</span>
     </div>
     <div class="footer-right">linkist.ai · April 2026<br>Limited Edition</div>
+    <div class="footer-legal">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-conditions.html">Terms &amp; Conditions</a>
+      <a href="refund-policy.html">Refund Policy</a>
+      <a href="mailto:hello@linkist.ai">Contact</a>
+    </div>
   </footer>`;
 }
 
