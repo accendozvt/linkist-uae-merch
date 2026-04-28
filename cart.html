@@ -64,6 +64,8 @@
 document.getElementById('nav-root').innerHTML = renderNav();
 document.getElementById('footer-root').innerHTML = renderFooter();
 
+function escHtml(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
 function renderCart() {
   const items = Cart.get();
   const el = document.getElementById('cart-content');
@@ -79,11 +81,11 @@ function renderCart() {
   }
 
   const itemsHTML = items.map(item => `
-    <div class="cart-item" data-key="${item.key}">
-      <div class="cart-item-img"><img src="${item.image}" alt="${item.name}"/></div>
+    <div class="cart-item" data-key="${escHtml(item.key)}">
+      <div class="cart-item-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
       <div>
-        <div class="cart-item-name">${item.name}</div>
-        <div class="cart-item-meta">SIZE: ${item.size}</div>
+        <div class="cart-item-name">${escHtml(item.name)}</div>
+        <div class="cart-item-meta">SIZE: ${escHtml(item.size)}</div>
         <div class="cart-item-actions">
           <div class="qty-wrap" style="border-color:#2a2a2a;">
             <button class="qty-btn" onclick="changeQty('${item.key}',-1)">−</button>
@@ -107,7 +109,7 @@ function renderCart() {
         <div class="summary-rows">
           ${items.map(i => `
             <div class="summary-row label">
-              <span>${i.name} (${i.size}) ×${i.qty}</span>
+              <span>${escHtml(i.name)} (${escHtml(i.size)}) ×${i.qty}</span>
               <span>${i.price * i.qty} AED</span>
             </div>`).join('')}
         </div>

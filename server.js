@@ -12,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
+if (process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must be at least 32 characters');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const supabase = process.env.SUPABASE_URL
@@ -23,6 +24,35 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
+
+// ── Security helpers ────────────────────────────────────────────
+
+function escHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
+// Simple in-memory rate limiter — no external package required
+const _rl = new Map();
+function isRateLimited(key, max, windowMs) {
+  const now = Date.now();
+  let e = _rl.get(key);
+  if (!e || now > e.reset) e = { n: 0, reset: now + windowMs };
+  e.n++;
+  _rl.set(key, e);
+  return e.n > max;
+}
+
+// Whitelist origins used to build Stripe redirect URLs
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'linkist.ai,ineverleft.linkist.ai,localhost').split(',');
+function safeOrigin(req) {
+  const origin = req.headers.origin || '';
+  try {
+    const host = new URL(origin).hostname;
+    if (ALLOWED_ORIGINS.some(o => host === o || host.endsWith('.' + o))) return origin;
+  } catch {}
+  return 'https://linkist.ai';
+}
 
 // ── Middleware helpers ──────────────────────────────────────────
 
@@ -54,25 +84,6 @@ function makeToken(customer) {
     { expiresIn: '30d' }
   );
 }
-
-// ── Email debug endpoint (open to anyone with the URL — remove after testing) ─
-
-app.get('/api/email-test', async (req, res) => {
-  if (!resend) return res.status(503).json({ ok: false, error: 'RESEND_API_KEY not set' });
-  const to = req.query.to;
-  if (!to) return res.status(400).json({ ok: false, error: 'Pass ?to=email@example.com in query' });
-  try {
-    const result = await resend.emails.send({
-      from: 'Linkist UAE <hello@linkist.ai>',
-      to: String(to),
-      subject: 'Linkist email test',
-      html: '<p>If you see this, Resend is working from this server.</p>'
-    });
-    return res.json({ ok: !result.error, data: result.data || null, error: result.error || null });
-  } catch (err) {
-    return res.status(500).json({ ok: false, threw: true, message: err.message });
-  }
-});
 
 // ── Health check ────────────────────────────────────────────────
 
@@ -156,7 +167,7 @@ app.post('/create-checkout', async (req, res) => {
       };
     });
 
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
+    const origin = safeOrigin(req);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
@@ -229,7 +240,7 @@ app.post('/pre-checkout', async (req, res) => {
     });
 
     const totalAmount = line_items.reduce((s, li) => s + li.price_data.unit_amount * li.quantity, 0);
-    const origin = req.headers.origin || `http://localhost:${PORT}`;
+    const origin = safeOrigin(req);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
@@ -401,14 +412,14 @@ async function sendMail(payload) {
 function buyerEmailHtml(order, items) {
   const itemRows = items.map(item => `
     <tr>
-      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;">${item.product_name || item.name}</td>
-      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;text-align:center;">${item.size}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;">${escHtml(item.product_name || item.name)}</td>
+      <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;text-align:center;">${escHtml(item.size)}</td>
       <td style="padding:10px 8px;border-bottom:1px solid #222;color:#ccc;text-align:center;">×${item.quantity || item.qty}</td>
       <td style="padding:10px 8px;border-bottom:1px solid #222;color:#fff;text-align:right;font-weight:bold;">AED ${(item.unit_price || item.price) * (item.quantity || item.qty)}</td>
     </tr>`).join('');
 
   const addr = order.shipping_address;
-  const addrText = addr ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).join(', ') : '';
+  const addrText = addr ? [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).map(escHtml).join(', ') : '';
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
 
@@ -456,7 +467,7 @@ function buyerEmailHtml(order, items) {
   </td></tr></table>
   ${addrText ? `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 28px;">
     <div style="font-size:10px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:10px;">Shipping To</div>
-    <div style="color:#ccc;font-size:13px;line-height:1.7;">${order.customer_name}<br>${addrText}</div>
+    <div style="color:#ccc;font-size:13px;line-height:1.7;">${escHtml(order.customer_name)}<br>${addrText}</div>
   </td></tr></table>` : ''}
   <!-- Message -->
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 32px;">
@@ -500,7 +511,7 @@ async function sendWelcomeEmail(customer) {
     <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
   </td></tr></table>
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
-    <h1 style="color:#ffffff;font-size:24px;margin:0 0 12px;">Welcome, ${customer.name.split(' ')[0]}!</h1>
+    <h1 style="color:#ffffff;font-size:24px;margin:0 0 12px;">Welcome, ${escHtml(customer.name.split(' ')[0])}!</h1>
     <p style="color:#888;font-size:14px;line-height:1.8;margin:0 0 24px;">Your account is ready. You can now track your orders and shop the limited edition I Never Left collection.</p>
     <a href="https://linkist.ai" style="display:inline-block;background:#E53935;color:#ffffff;font-size:13px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:1px;">SHOP THE COLLECTION</a>
   </td></tr></table>
@@ -566,14 +577,14 @@ async function sendSellerEmail(order) {
       </div>
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
         <p style="color:#888;margin:0 0 8px;font-size:12px;">CUSTOMER</p>
-        <p style="color:#fff;margin:0 0 4px;font-size:15px;">${order.customer_name || 'N/A'}</p>
-        <p style="color:#aaa;margin:0 0 4px;font-size:13px;">${order.customer_email || ''}</p>
-        ${order.customer_phone ? `<p style="color:#aaa;margin:0 0 4px;font-size:13px;">${order.customer_phone}</p>` : ''}
-        ${(() => { const a = order.shipping_address; if (!a) return ''; const lines = [a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(', '); return lines ? `<p style="color:#888;margin:8px 0 0;font-size:12px;line-height:1.6;">${lines}</p>` : ''; })()}
+        <p style="color:#fff;margin:0 0 4px;font-size:15px;">${escHtml(order.customer_name || 'N/A')}</p>
+        <p style="color:#aaa;margin:0 0 4px;font-size:13px;">${escHtml(order.customer_email || '')}</p>
+        ${order.customer_phone ? `<p style="color:#aaa;margin:0 0 4px;font-size:13px;">${escHtml(order.customer_phone)}</p>` : ''}
+        ${(() => { const a = order.shipping_address; if (!a) return ''; const lines = [a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).map(escHtml).join(', '); return lines ? `<p style="color:#888;margin:8px 0 0;font-size:12px;line-height:1.6;">${lines}</p>` : ''; })()}
       </div>
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
         <p style="color:#888;margin:0 0 8px;font-size:12px;">ITEMS</p>
-        ${items.map(i => `<p style="color:#ccc;margin:0 0 4px;font-size:13px;">• ${i.product_name || i.name} — ${i.size} × ${i.quantity || i.qty}</p>`).join('')}
+        ${items.map(i => `<p style="color:#ccc;margin:0 0 4px;font-size:13px;">• ${escHtml(i.product_name || i.name)} — ${escHtml(i.size)} × ${i.quantity || i.qty}</p>`).join('')}
       </div>
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
         <p style="color:#888;margin:0 0 4px;font-size:12px;">TOTAL</p>
@@ -598,9 +609,9 @@ async function sendShippingEmail(order, items, trackingNumber) {
         <div style="font-size:48px;margin:16px 0;">🚀</div>
         <h1 style="color:#fff;font-size:24px;">Your order is on its way!</h1>
         <p style="color:#888;font-size:13px;">Order #${orderId}</p>
-        ${trackingNumber ? `<div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin:24px 0;"><p style="color:#888;margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Tracking Number</p><p style="color:#fff;font-family:monospace;font-size:16px;margin:0;">${trackingNumber}</p></div>` : ''}
+        ${trackingNumber ? `<div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin:24px 0;"><p style="color:#888;margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Tracking Number</p><p style="color:#fff;font-family:monospace;font-size:16px;margin:0;">${escHtml(trackingNumber)}</p></div>` : ''}
         <div style="margin-top:24px;">
-          ${(items || []).map(i => `<p style="color:#ccc;font-size:13px;">${i.product_name} — ${i.size} × ${i.quantity}</p>`).join('')}
+          ${(items || []).map(i => `<p style="color:#ccc;font-size:13px;">${escHtml(i.product_name)} — ${escHtml(i.size)} × ${i.quantity}</p>`).join('')}
         </div>
         <p style="color:#555;font-size:12px;margin-top:32px;">#istandwithUAE · linkist.ai</p>
       </div>
@@ -725,13 +736,27 @@ app.get('/invoice/:orderId', async (req, res) => {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
     const { data: order } = await supabase.from('orders').select('*').eq('id', req.params.orderId).single();
     if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // Access control: must provide matching Stripe session ID (guest) or be the owning customer
+    const sid = req.query.sid;
+    const auth = req.headers.authorization;
+    let authorized = sid && order.stripe_session_id === sid;
+    if (!authorized && auth?.startsWith('Bearer ')) {
+      try {
+        const p = jwt.verify(auth.slice(7), JWT_SECRET);
+        if (p.customerId && p.customerId === order.customer_id) authorized = true;
+      } catch {}
+    }
+    if (!authorized) return res.status(403).json({ error: 'Access denied' });
+
     const { data: items } = await supabase.from('order_items').select('*').eq('order_id', order.id);
     const pdfBuffer = await generateInvoiceBuffer(order, items || []);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.id.slice(0,8)}.pdf`);
     res.send(pdfBuffer);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Invoice error:', err.message);
+    res.status(500).json({ error: 'Could not generate invoice' });
   }
 });
 
@@ -750,6 +775,7 @@ app.get('/orders/by-session/:sessionId', async (req, res) => {
 // ── Customer auth ───────────────────────────────────────────────
 
 app.post('/customer/register', async (req, res) => {
+  if (isRateLimited(`reg:${req.ip}`, 5, 60 * 60 * 1000)) return res.status(429).json({ error: 'Too many attempts. Try again in an hour.' });
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
@@ -778,6 +804,7 @@ app.post('/customer/register', async (req, res) => {
 });
 
 app.post('/customer/login', async (req, res) => {
+  if (isRateLimited(`login:${req.ip}`, 10, 15 * 60 * 1000)) return res.status(429).json({ error: 'Too many login attempts. Try again in 15 minutes.' });
   try {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
@@ -957,9 +984,10 @@ app.get('/admin/orders', requireAdmin, async (req, res) => {
     if (!supabase) return res.json({ orders: [], total: 0 });
 
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const status = req.query.status;
     const search = req.query.search;
+    if (search && !/^[\w\s.@+\-]{1,100}$/.test(search)) return res.status(400).json({ error: 'Invalid search' });
     const offset = (page - 1) * limit;
 
     let query = supabase.from('orders').select('*', { count: 'exact' });
