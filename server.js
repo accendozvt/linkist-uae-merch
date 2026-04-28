@@ -63,7 +63,7 @@ app.get('/api/email-test', async (req, res) => {
   if (!to) return res.status(400).json({ ok: false, error: 'Pass ?to=email@example.com in query' });
   try {
     const result = await resend.emails.send({
-      from: 'Linkist UAE <onboarding@resend.dev>',
+      from: 'Linkist UAE <hello@linkist.ai>',
       to: String(to),
       subject: 'Linkist email test',
       html: '<p>If you see this, Resend is working from this server.</p>'
@@ -486,7 +486,7 @@ function buyerEmailHtml(order, items) {
 async function sendWelcomeEmail(customer) {
   if (!resend || !customer.email) return;
   await sendMail({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: customer.email,
     subject: 'Welcome to Linkist UAE — I Never Left',
     html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
@@ -526,7 +526,7 @@ async function sendBuyerEmail(order) {
   const items = order.items || [];
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   const payload = {
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     subject: `Order Confirmed — I Never Left #${orderId}`,
     html: buyerEmailHtml(order, items),
@@ -555,7 +555,7 @@ async function sendSellerEmail(order) {
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await sendMail({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: adminRecipients,
     subject: `New Order — AED ${total} — ${order.customer_name || 'Customer'}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;background:#0a0a0a;color:#fff;padding:32px;border-radius:8px;">
@@ -589,7 +589,7 @@ async function sendShippingEmail(order, items, trackingNumber) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await sendMail({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     reply_to: process.env.SELLER_EMAIL,
     subject: `Your order has shipped! — Linkist UAE`,
@@ -614,7 +614,7 @@ async function sendDeliveredEmail(order, items) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await sendMail({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     subject: `Your order has arrived! — Linkist UAE`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:0;">
