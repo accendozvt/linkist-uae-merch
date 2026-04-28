@@ -456,7 +456,7 @@ async function sendBuyerEmail(order) {
   })));
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     subject: `Order Confirmed — I Never Left #${orderId}`,
     html: buyerEmailHtml(order, items),
@@ -473,7 +473,7 @@ async function sendSellerEmail(order) {
   const total = Math.round((order.total_amount || 0) / 100);
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: process.env.SELLER_EMAIL,
     subject: `New Order — AED ${total} — ${order.customer_name || 'Customer'}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;background:#0a0a0a;color:#fff;padding:32px;border-radius:8px;">
@@ -507,7 +507,7 @@ async function sendShippingEmail(order, items, trackingNumber) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     reply_to: process.env.SELLER_EMAIL,
     subject: `Your order has shipped! — Linkist UAE`,
@@ -532,7 +532,7 @@ async function sendDeliveredEmail(order, items) {
   if (!resend || !order.customer_email) return;
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
   await resend.emails.send({
-    from: 'Linkist UAE <onboarding@resend.dev>',
+    from: 'Linkist UAE <hello@linkist.ai>',
     to: order.customer_email,
     subject: `Your order has arrived! — Linkist UAE`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:0;">
