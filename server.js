@@ -488,23 +488,25 @@ async function sendWelcomeEmail(customer) {
 async function sendBuyerEmail(order) {
   if (!resend || !order.customer_email) return;
   const items = order.items || [];
-  const pdfBuffer = await generateInvoiceBuffer(order, items.map(i => ({
-    product_name: i.product_name || i.name,
-    size: i.size,
-    quantity: i.quantity || i.qty,
-    unit_price: i.unit_price || i.price
-  })));
   const orderId = (order.id || '').slice(0, 8).toUpperCase();
-  await resend.emails.send({
+  const payload = {
     from: 'Linkist UAE <onboarding@resend.dev>',
     to: order.customer_email,
     subject: `Order Confirmed — I Never Left #${orderId}`,
     html: buyerEmailHtml(order, items),
-    attachments: [{
-      filename: `invoice-${orderId}.pdf`,
-      content: pdfBuffer.toString('base64'),
-    }]
-  });
+  };
+  try {
+    const pdfBuffer = await generateInvoiceBuffer(order, items.map(i => ({
+      product_name: i.product_name || i.name,
+      size: i.size,
+      quantity: i.quantity || i.qty,
+      unit_price: i.unit_price || i.price
+    })));
+    payload.attachments = [{ filename: `invoice-${orderId}.pdf`, content: pdfBuffer.toString('base64') }];
+  } catch (e) {
+    console.error('Invoice PDF generation failed (email will send without attachment):', e.message);
+  }
+  await resend.emails.send(payload);
 }
 
 async function sendSellerEmail(order) {
