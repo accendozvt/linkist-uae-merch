@@ -423,7 +423,7 @@ function buyerEmailHtml(order, items) {
   </tr></table>
   <!-- Header with logo -->
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
-    <img src="https://linkist.ai/images/linkist-white.png" alt="Linkist" width="120" style="display:inline-block;max-width:120px;" onerror="this.style.display='none'"/>
+    <div style="font-family:Arial,sans-serif;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:5px;">LINKIST</div>
     <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
   </td></tr></table>
   <!-- Success icon -->
@@ -496,7 +496,7 @@ async function sendWelcomeEmail(customer) {
     <td style="background:#111111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
   </tr></table>
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
-    <img src="https://linkist.ai/images/linkist-white.png" alt="Linkist" width="120" style="display:inline-block;max-width:120px;"/>
+    <div style="font-family:Arial,sans-serif;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:5px;">LINKIST</div>
     <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
   </td></tr></table>
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
@@ -565,9 +565,11 @@ async function sendSellerEmail(order) {
         <p style="color:#fff;margin:0;font-family:monospace;">#${orderId}</p>
       </div>
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
-        <p style="color:#888;margin:0 0 4px;font-size:12px;">CUSTOMER</p>
-        <p style="color:#fff;margin:0;">${order.customer_name || 'N/A'}</p>
-        <p style="color:#888;margin:4px 0 0;font-size:13px;">${order.customer_email || ''}</p>
+        <p style="color:#888;margin:0 0 8px;font-size:12px;">CUSTOMER</p>
+        <p style="color:#fff;margin:0 0 4px;font-size:15px;">${order.customer_name || 'N/A'}</p>
+        <p style="color:#aaa;margin:0 0 4px;font-size:13px;">${order.customer_email || ''}</p>
+        ${order.customer_phone ? `<p style="color:#aaa;margin:0 0 4px;font-size:13px;">${order.customer_phone}</p>` : ''}
+        ${(() => { const a = order.shipping_address; if (!a) return ''; const lines = [a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(', '); return lines ? `<p style="color:#888;margin:8px 0 0;font-size:12px;line-height:1.6;">${lines}</p>` : ''; })()}
       </div>
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
         <p style="color:#888;margin:0 0 8px;font-size:12px;">ITEMS</p>
@@ -576,10 +578,6 @@ async function sendSellerEmail(order) {
       <div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:20px;margin-bottom:16px;">
         <p style="color:#888;margin:0 0 4px;font-size:12px;">TOTAL</p>
         <p style="color:#fff;font-size:24px;margin:0;font-weight:bold;">AED ${total}</p>
-      </div>
-      <div style="margin-top:24px;display:flex;gap:12px;">
-        <a href="https://dashboard.stripe.com/payments" style="background:#635BFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;">Stripe Dashboard</a>
-        <a href="${process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace('.supabase.co', '.supabase.co/project/default') : 'https://app.supabase.com'}" style="background:#3ECF8E;color:#000;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:13px;">Supabase Dashboard</a>
       </div>
     </div>`
   });

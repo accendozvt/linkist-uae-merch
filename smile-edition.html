@@ -29,19 +29,31 @@
 .details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.5); display:flex; align-items:center; gap:8px; }
 .details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
 .action-row { display:flex; gap:10px; align-items:center; }
-.size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:-14px; }
+.size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:6px; }
 .other-products { padding:0 64px 80px; max-width:1100px; margin:0 auto; }
 .other-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
-
+.view-cart-btn {
+  display:none; width:100%; margin-top:10px;
+  background:transparent; border:1px solid var(--white); color:var(--white);
+  border-radius:8px; padding:12px; cursor:pointer;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.08em;
+  text-align:center; text-decoration:none; transition:background 0.2s; box-sizing:border-box;
+}
+.view-cart-btn:hover { background:rgba(255,255,255,0.08); }
 .other-grid a, .other-grid a * { color: var(--white); text-decoration: none; }
 .pcard-tag { color: #666; }
 @media(max-width:768px) {
   .product-wrap{grid-template-columns:1fr;gap:32px;padding:80px 20px 48px}
   .product-img-main{position:relative;top:0}
   .other-products{padding:0 20px 60px}
-  .other-grid{grid-template-columns:1fr 1fr}
+  .other-grid{
+    display:flex; overflow-x:auto; gap:12px;
+    scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+    padding-bottom:8px; grid-template-columns:none;
+  }
+  .other-grid a { flex:0 0 160px; scroll-snap-align:start; }
 }
-@media(max-width:480px) { .other-grid{grid-template-columns:1fr} }
+@media(max-width:480px) { .other-grid a { flex:0 0 150px; } }
 </style>
 </head>
 <body>
@@ -82,6 +94,7 @@
     <div class="action-row">
       <button class="btn-primary full" id="atc-btn">Add to Cart</button>
     </div>
+    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART →</a>
 
     <hr class="product-divider">
 
@@ -169,6 +182,7 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
+  document.getElementById('view-cart-btn').style.display = 'block';
   showToast(product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
 });
 
