@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Checkout — I Never Left · Linkist</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.co-wrap { max-width: 1060px; margin: 0 auto; padding: 100px 40px 80px; }
+.co-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(32px,5vw,56px); margin-bottom: 40px; }
+.co-layout { display: grid; grid-template-columns: 1fr 380px; gap: 40px; align-items: start; }
+.co-form-card {
+  background: #111; border: 1px solid #1e1e1e; border-radius: 14px; padding: 32px;
+}
+.co-section-title {
+  font-family: 'Space Mono', monospace; font-size: 10px; color: #555;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px;
+}
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; font-family: 'Space Mono', monospace; font-size: 9px;
+  letter-spacing: 2px; color: #555; text-transform: uppercase; margin-bottom: 7px;
+}
+.field input, .field select {
+  width: 100%; background: #0a0a0a; border: 1px solid #2a2a2a; border-radius: 8px;
+  color: var(--white); font-family: 'DM Sans', sans-serif; font-size: 14px;
+  padding: 12px 14px; outline: none; transition: border-color 0.2s;
+  -webkit-appearance: none; appearance: none;
+}
+.field input:focus, .field select:focus { border-color: #555; }
+.field input.error, .field select.error { border-color: var(--accent); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.save-row {
+  display: flex; align-items: center; gap: 10px; margin: 20px 0;
+  font-family: 'Space Mono', monospace; font-size: 10px; color: #555; letter-spacing: 1px;
+  cursor: pointer; user-select: none;
+}
+.save-row input[type=checkbox] {
+  width: 16px; height: 16px; accent-color: var(--green); cursor: pointer;
+  flex-shrink: 0; margin: 0;
+}
+.co-divider { border: none; border-top: 1px solid #1e1e1e; margin: 24px 0; }
+.co-error {
+  background: rgba(229,57,53,0.1); border: 1px solid rgba(229,57,53,0.3);
+  border-radius: 8px; color: #E53935; font-size: 13px;
+  padding: 12px 14px; margin-bottom: 16px; display: none;
+}
+
+/* Order summary sidebar */
+.co-summary {
+  background: #111; border: 1px solid #1e1e1e; border-radius: 14px;
+  padding: 28px; position: sticky; top: 88px;
+}
+.co-sum-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; margin-bottom: 20px; }
+.co-sum-items { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.co-sum-item {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center;
+}
+.co-sum-img {
+  width: 52px; height: 52px; border-radius: 6px; background: #0d0d0d; overflow: hidden;
+}
+.co-sum-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.co-sum-name { font-size: 13px; font-weight: 600; }
+.co-sum-meta { font-family: 'Space Mono', monospace; font-size: 10px; color: #555; margin-top: 2px; }
+.co-sum-price { font-family: 'Bebas Neue', sans-serif; font-size: 20px; }
+.co-sum-total {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 16px; border-top: 1px solid #1e1e1e;
+}
+.co-sum-total-label { font-size: 13px; font-weight: 600; color: #888; }
+.co-sum-total-val { font-family: 'Bebas Neue', sans-serif; font-size: 30px; }
+.co-sum-note {
+  font-family: 'Space Mono', monospace; font-size: 9px; color: #444;
+  letter-spacing: 0.05em; line-height: 1.6; text-align: center; margin-top: 12px;
+}
+.co-empty { text-align: center; padding: 60px 24px; color: #555; }
+
+@media(max-width: 768px) {
+  .co-wrap { padding: 80px 20px 60px; }
+  .co-layout { grid-template-columns: 1fr; }
+  .co-summary { position: relative; top: 0; order: -1; }
+  .field-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="nav-root"></div>
+<div class="co-wrap">
+  <h1 class="co-title">Checkout</h1>
+  <div id="co-main"></div>
+</div>
+<div id="footer-root"></div>
+
+<script src="cart.js"></script>
+<script>
+document.getElementById('nav-root').innerHTML = renderNav();
+document.getElementById('footer-root').innerHTML = renderFooter();
+
+const cartItems = Cart.get();
+if (!cartItems.length) {
+  window.location.href = 'cart.html';
+}
+
+const customer = getCustomer();
+
+const EMIRATES = ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah'];
+
+function renderPage() {
+  const total = Cart.total();
+  const summaryHTML = cartItems.map(item => `
+    <div class="co-sum-item">
+      <div class="co-sum-img"><img src="${escHtml(item.image)}" alt="${escHtml(item.name)}"/></div>
+      <div>
+        <div class="co-sum-name">${escHtml(item.name)}</div>
+        <div class="co-sum-meta">SIZE: ${item.size} &nbsp;·&nbsp; ×${item.qty}</div>
+      </div>
+      <div class="co-sum-price">${item.price * item.qty}<span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;"> AED</span></div>
+    </div>
+  `).join('');
+
+  const emiratesOptions = EMIRATES.map(e => `<option value="${e}">${e}</option>`).join('');
+  const saveCheckbox = customer
+    ? `<label class="save-row"><input type="checkbox" id="co-save-addr" checked/> Save shipping details to my account</label>`
+    : '';
+
+  document.getElementById('co-main').innerHTML = `
+    <div class="co-layout">
+      <div>
+        <div class="co-form-card">
+          <div class="co-section-title">Contact Details</div>
+          <div class="co-error" id="co-error"></div>
+          <div class="field">
+            <label>Full Name *</label>
+            <input type="text" id="co-name" placeholder="Your full name" autocomplete="name"/>
+          </div>
+          <div class="field">
+            <label>Email Address *</label>
+            <input type="email" id="co-email" placeholder="you@example.com" autocomplete="email"/>
+          </div>
+          <div class="field">
+            <label>Phone Number *</label>
+            <input type="tel" id="co-phone" placeholder="+971 50 000 0000" autocomplete="tel"/>
+          </div>
+          <hr class="co-divider"/>
+          <div class="co-section-title">Shipping Address</div>
+          <div class="field">
+            <label>Address Line 1 *</label>
+            <input type="text" id="co-line1" placeholder="Building, street, area" autocomplete="address-line1"/>
+          </div>
+          <div class="field">
+            <label>Address Line 2</label>
+            <input type="text" id="co-line2" placeholder="Apartment, floor, unit (optional)" autocomplete="address-line2"/>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Emirate / City *</label>
+              <select id="co-state">
+                <option value="">Select Emirate</option>
+                ${emiratesOptions}
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>City / Area</label>
+              <input type="text" id="co-city" placeholder="e.g. Downtown, JLT" autocomplete="address-level2"/>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Postal Code</label>
+              <input type="text" id="co-postal" placeholder="Optional" autocomplete="postal-code"/>
+            </div>
+            <div class="field">
+              <label>Country *</label>
+              <input type="text" id="co-country" placeholder="UAE" value="United Arab Emirates" autocomplete="country-name"/>
+            </div>
+          </div>
+          ${saveCheckbox}
+        </div>
+      </div>
+
+      <div class="co-summary">
+        <div class="co-sum-title">Your Order</div>
+        <div class="co-sum-items">${summaryHTML}</div>
+        <div class="co-sum-total">
+          <span class="co-sum-total-label">Total</span>
+          <span class="co-sum-total-val">${total} <span style="font-family:'DM Sans',sans-serif;font-size:14px;color:#888;">AED</span></span>
+        </div>
+        <button class="btn-primary full" id="co-pay-btn" onclick="submitCheckout()" style="margin-top:20px;width:100%;">
+          Pay with Card
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </button>
+        <p class="co-sum-note">Secure payment via Stripe<br>All major cards accepted</p>
+        <a href="cart.html" class="btn-secondary" style="display:flex;justify-content:center;font-size:12px;margin-top:10px;">← Edit Cart</a>
+      </div>
+    </div>
+  `;
+
+  // Pre-fill if logged in
+  if (customer) {
+    prefillFromProfile();
+  }
+}
+
+async function prefillFromProfile() {
+  try {
+    const res = await fetch('/customer/me', {
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('customer_token') }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.name) document.getElementById('co-name').value = data.name;
+    if (data.email) document.getElementById('co-email').value = data.email;
+    if (data.phone) document.getElementById('co-phone').value = data.phone;
+    if (data.address_line1) document.getElementById('co-line1').value = data.address_line1;
+    if (data.address_line2) document.getElementById('co-line2').value = data.address_line2;
+    if (data.address_city) document.getElementById('co-city').value = data.address_city;
+    if (data.address_state) {
+      const sel = document.getElementById('co-state');
+      const opt = [...sel.options].find(o => o.value === data.address_state);
+      if (opt) sel.value = data.address_state;
+      else { sel.value = 'Other'; document.getElementById('co-city').value = data.address_state; }
+    }
+    if (data.address_postal) document.getElementById('co-postal').value = data.address_postal;
+    if (data.address_country) document.getElementById('co-country').value = data.address_country;
+  } catch(e) { /* non-critical */ }
+}
+
+async function submitCheckout() {
+  const errEl = document.getElementById('co-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('co-pay-btn');
+
+  const name = document.getElementById('co-name').value.trim();
+  const email = document.getElementById('co-email').value.trim();
+  const phone = document.getElementById('co-phone').value.trim();
+  const line1 = document.getElementById('co-line1').value.trim();
+  const line2 = document.getElementById('co-line2').value.trim();
+  const state = document.getElementById('co-state').value.trim();
+  const city = document.getElementById('co-city').value.trim();
+  const postal = document.getElementById('co-postal').value.trim();
+  const country = document.getElementById('co-country').value.trim();
+  const saveAddr = document.getElementById('co-save-addr')?.checked ?? false;
+
+  // Validation
+  if (!name) return showErr('Full name is required.');
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('A valid email address is required.');
+  if (!phone) return showErr('Phone number is required for delivery coordination.');
+  if (!line1) return showErr('Address line 1 is required.');
+  if (!state) return showErr('Please select your emirate.');
+  if (!country) return showErr('Country is required.');
+
+  btn.textContent = 'Redirecting to payment...';
+  btn.disabled = true;
+
+  try {
+    const payload = {
+      items: cartItems,
+      customer: {
+        name, email, phone,
+        line1, line2: line2 || null,
+        city: city || state,
+        state: state,
+        postal: postal || null,
+        country,
+        customerId: customer?.customerId || null,
+        saveAddress: saveAddr,
+      }
+    };
+
+    const res = await fetch('/pre-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Checkout failed');
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      throw new Error('No payment URL returned');
+    }
+  } catch(err) {
+    showErr(err.message);
+    btn.textContent = 'Pay with Card';
+    btn.disabled = false;
+  }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('co-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+renderPage();
+</script>
+</body>
+</html>

@@ -165,6 +165,106 @@ app.post('/create-checkout', async (req, res) => {
   }
 });
 
+// ── Pre-checkout: save order BEFORE Stripe ──────────────────────
+
+app.post('/pre-checkout', async (req, res) => {
+  try {
+    const { items, customer: cust } = req.body;
+    if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
+    if (!cust?.name || !cust?.email) return res.status(400).json({ error: 'Name and email are required' });
+    if (!cust?.line1 || !cust?.city || !cust?.country) return res.status(400).json({ error: 'Shipping address is required' });
+
+    // Stock validation
+    if (supabase) {
+      for (const item of items) {
+        const { data: stockRow } = await supabase.from('stock')
+          .select('quantity').eq('product_id', item.id).eq('size', item.size).single();
+        if (!stockRow || stockRow.quantity < item.qty) {
+          return res.status(400).json({ error: `${item.name} (${item.size}) is out of stock` });
+        }
+      }
+    }
+
+    // Load prices
+    const FALLBACK_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
+    let dbPrices = {};
+    if (supabase) {
+      const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
+      if (dbProducts) dbProducts.forEach(p => { dbPrices[p.id] = p.price; });
+    }
+    const PRICES = { ...FALLBACK_PRICES, ...dbPrices };
+
+    const line_items = items.map(item => {
+      const serverPrice = PRICES[item.id];
+      if (!serverPrice) throw new Error(`Unknown product: ${item.id}`);
+      return {
+        price_data: {
+          currency: 'aed',
+          product_data: { name: `I Never Left — ${item.name}`, description: `Size: ${item.size}`, images: item.image ? [item.image] : [] },
+          unit_amount: serverPrice * 100,
+        },
+        quantity: item.qty,
+      };
+    });
+
+    const totalAmount = line_items.reduce((s, li) => s + li.price_data.unit_amount * li.quantity, 0);
+    const origin = req.headers.origin || `http://localhost:${PORT}`;
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items,
+      mode: 'payment',
+      currency: 'aed',
+      customer_email: cust.email,
+      success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/cart.html`,
+      metadata: {
+        items: JSON.stringify(items.map(i => ({ id: i.id, name: i.name, size: i.size, qty: i.qty, price: PRICES[i.id], image: i.image }))),
+        customer_id: cust.customerId || '',
+      },
+    });
+
+    const shippingAddress = { line1: cust.line1, line2: cust.line2 || null, city: cust.city, state: cust.state || null, postal_code: cust.postal || null, country: cust.country };
+    const orderData = {
+      stripe_session_id: session.id,
+      status: 'pending',
+      total_amount: totalAmount,
+      currency: 'aed',
+      customer_name: cust.name,
+      customer_email: cust.email,
+      customer_phone: cust.phone || '',
+      customer_id: cust.customerId || null,
+      shipping_address: shippingAddress,
+    };
+
+    if (supabase) {
+      let { data: order, error: oErr } = await supabase.from('orders').insert(orderData).select().single();
+      if (oErr) {
+        const { customer_phone, ...noPhone } = orderData;
+        const retry = await supabase.from('orders').insert(noPhone).select().single();
+        if (!retry.error) order = retry.data;
+      }
+      if (order) {
+        await supabase.from('order_items').insert(
+          items.map(item => ({ order_id: order.id, product_id: item.id, product_name: item.name, size: item.size, quantity: item.qty, unit_price: PRICES[item.id] }))
+        );
+        // Save address to customer profile if logged in and checkbox checked
+        if (cust.customerId && cust.saveAddress) {
+          await supabase.from('customers').update({
+            phone: cust.phone || '', address_line1: cust.line1, address_line2: cust.line2 || '',
+            address_city: cust.city, address_state: cust.state || '', address_postal: cust.postal || '',
+            address_country: cust.country, updated_at: new Date().toISOString(),
+          }).eq('id', cust.customerId);
+        }
+      }
+    }
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Pre-checkout error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Webhook ─────────────────────────────────────────────────────
 
 app.post('/webhook', async (req, res) => {
@@ -183,57 +283,65 @@ app.post('/webhook', async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     try {
-      const items = JSON.parse(session.metadata?.items || '[]');
-      const customerId = session.metadata?.customer_id || null;
-
-      const orderData = {
-        stripe_session_id: session.id,
-        status: 'processing',
-        total_amount: session.amount_total,
-        currency: 'aed',
-        customer_name: session.shipping_details?.name || session.customer_details?.name || '',
-        customer_email: session.customer_details?.email || '',
-        customer_phone: session.customer_details?.phone || '',
-        customer_id: customerId || null,
-        shipping_address: session.shipping_details?.address || null,
-      };
-
       if (supabase) {
-        // Try with phone; if column doesn't exist yet, retry without it
-        let { data: order, error: orderErr } = await supabase
-          .from('orders').insert(orderData).select().single();
+        let order;
+        let items;
 
-        if (orderErr) {
-          const { customer_phone, ...dataWithoutPhone } = orderData;
-          const retry = await supabase.from('orders').insert(dataWithoutPhone).select().single();
-          if (retry.error) throw retry.error;
-          order = retry.data;
-          orderErr = null;
+        // Check if order already exists (created by /pre-checkout before payment)
+        const { data: existingOrder } = await supabase.from('orders')
+          .select('*').eq('stripe_session_id', session.id).single();
+
+        if (existingOrder) {
+          // Pre-checkout path: order already has all customer data — just flip status
+          await supabase.from('orders')
+            .update({ status: 'processing', updated_at: new Date().toISOString() })
+            .eq('id', existingOrder.id);
+          order = { ...existingOrder, status: 'processing' };
+          const { data: savedItems } = await supabase.from('order_items').select('*').eq('order_id', order.id);
+          items = savedItems || [];
+        } else {
+          // Legacy / direct path: create order from Stripe session data
+          const metaItems = JSON.parse(session.metadata?.items || '[]');
+          const customerId = session.metadata?.customer_id || null;
+          const orderData = {
+            stripe_session_id: session.id,
+            status: 'processing',
+            total_amount: session.amount_total,
+            currency: 'aed',
+            customer_name: session.shipping_details?.name || session.customer_details?.name || '',
+            customer_email: session.customer_details?.email || '',
+            customer_phone: session.customer_details?.phone || '',
+            customer_id: customerId || null,
+            shipping_address: session.shipping_details?.address || null,
+          };
+
+          let { data: newOrder, error: orderErr } = await supabase.from('orders').insert(orderData).select().single();
+          if (orderErr) {
+            const { customer_phone, ...dataWithoutPhone } = orderData;
+            const retry = await supabase.from('orders').insert(dataWithoutPhone).select().single();
+            if (retry.error) throw retry.error;
+            newOrder = retry.data;
+          }
+          if (!newOrder) throw new Error('Order insert returned no data');
+          order = newOrder;
+          items = metaItems;
+          if (items.length) {
+            await supabase.from('order_items').insert(
+              items.map(item => ({ order_id: order.id, product_id: item.id, product_name: item.name, size: item.size, quantity: item.qty, unit_price: item.price }))
+            );
+          }
         }
 
-        if (!order) throw new Error('Order insert returned no data');
-
-        if (items.length) {
-          await supabase.from('order_items').insert(
-            items.map(item => ({
-              order_id: order.id,
-              product_id: item.id,
-              product_name: item.name,
-              size: item.size,
-              quantity: item.qty,
-              unit_price: item.price,
-            }))
-          );
-
-          // Deduct stock — read then update (supabase-js never throws, .catch() is unreliable)
-          for (const item of items) {
-            const { data: stockRow } = await supabase.from('stock')
-              .select('quantity').eq('product_id', item.id).eq('size', item.size).single();
-            if (stockRow) {
-              await supabase.from('stock')
-                .update({ quantity: Math.max(0, stockRow.quantity - item.qty), updated_at: new Date().toISOString() })
-                .eq('product_id', item.id).eq('size', item.size);
-            }
+        // Always deduct stock — read then update (supabase-js never throws, .catch() is unreliable)
+        for (const item of items) {
+          const productId = item.product_id || item.id;
+          const qty = item.quantity ?? item.qty ?? 0;
+          const { data: stockRow } = await supabase.from('stock')
+            .select('quantity').eq('product_id', productId).eq('size', item.size).single();
+          if (stockRow) {
+            await supabase.from('stock')
+              .update({ quantity: Math.max(0, stockRow.quantity - qty), updated_at: new Date().toISOString() })
+              .eq('product_id', productId).eq('size', item.size);
           }
         }
 
@@ -469,10 +577,15 @@ async function generateInvoiceBuffer(order, items) {
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, 110);
     doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, 123);
     doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, 138);
+    let billY = 152;
+    if (order.customer_phone) {
+      doc.text(order.customer_phone, 50, billY, { width: 250 });
+      billY += 14;
+    }
     if (order.shipping_address) {
       const addr = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
       const lines = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
-      doc.text(lines.join(', '), 50, 152, { width: 250 });
+      doc.text(lines.join(', '), 50, billY, { width: 250 });
     }
 
     // Items table
@@ -600,7 +713,7 @@ app.get('/customer/me', requireCustomer, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
     const { data: customer } = await supabase.from('customers')
-      .select('id, name, email, created_at, last_login')
+      .select('id, name, email, phone, address_line1, address_line2, address_city, address_state, address_postal, address_country, created_at, last_login')
       .eq('id', req.customer.customerId).single();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     res.json(customer);
@@ -635,12 +748,24 @@ app.get('/customer/orders', requireCustomer, async (req, res) => {
 
 app.put('/customer/me', requireCustomer, async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, phone, address_line1, address_line2, address_city, address_state, address_postal, address_country } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
 
+    const updates = {
+      name: name.trim(),
+      phone: phone || '',
+      address_line1: address_line1 || '',
+      address_line2: address_line2 || '',
+      address_city: address_city || '',
+      address_state: address_state || '',
+      address_postal: address_postal || '',
+      address_country: address_country || '',
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: customer, error } = await supabase.from('customers')
-      .update({ name: name.trim(), updated_at: new Date().toISOString() })
+      .update(updates)
       .eq('id', req.customer.customerId)
       .select('id, name, email').single();
 

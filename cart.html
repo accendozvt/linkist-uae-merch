@@ -139,34 +139,10 @@ function removeItem(key) {
   Cart.updateBadge();
 }
 
-async function checkout() {
+function checkout() {
   const items = Cart.get();
   if (!items.length) return;
-
-  const btn = document.querySelector('.btn-primary.full');
-  btn.textContent = 'Redirecting to Stripe...';
-  btn.disabled = true;
-
-  try {
-    const customer = typeof getCustomer === 'function' ? getCustomer() : null;
-    const res = await fetch('/create-checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, customerId: customer?.customerId || null })
-    });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      throw new Error(data.error || 'No URL returned');
-    }
-  } catch (err) {
-    showToast(err.message || 'Checkout failed', false);
-    btn.textContent = 'Checkout';
-    btn.style.background = '';
-    btn.style.color = '';
-    btn.disabled = false;
-  }
+  window.location.href = 'checkout.html';
 }
 
 renderCart();

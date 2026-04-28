@@ -236,18 +236,53 @@
 
   <!-- Details Panel -->
   <div class="tab-panel" id="panel-details">
-    <!-- Profile -->
+    <!-- Profile + Contact + Address -->
     <div class="details-section">
-      <div class="details-section-title">Profile</div>
-      <div class="field">
-        <label>Full Name</label>
-        <input type="text" id="detail-name" placeholder="Your name"/>
+      <div class="details-section-title">Profile &amp; Contact</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Full Name</label>
+          <input type="text" id="detail-name" placeholder="Your name" autocomplete="name"/>
+        </div>
+        <div class="field">
+          <label>Phone Number</label>
+          <input type="tel" id="detail-phone" placeholder="+971 50 000 0000" autocomplete="tel"/>
+        </div>
       </div>
       <div class="field">
         <label>Email Address</label>
         <input type="email" id="detail-email" readonly/>
       </div>
-      <button class="btn-primary" onclick="saveName()">Save Changes</button>
+      <div class="details-section-title" style="margin-top:24px;">Shipping Address</div>
+      <div class="field">
+        <label>Address Line 1</label>
+        <input type="text" id="detail-line1" placeholder="Building, street, area" autocomplete="address-line1"/>
+      </div>
+      <div class="field">
+        <label>Address Line 2</label>
+        <input type="text" id="detail-line2" placeholder="Apartment, floor, unit (optional)" autocomplete="address-line2"/>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Emirate / State</label>
+          <input type="text" id="detail-state" placeholder="e.g. Dubai" autocomplete="address-level1"/>
+        </div>
+        <div class="field">
+          <label>City / Area</label>
+          <input type="text" id="detail-city" placeholder="e.g. Downtown" autocomplete="address-level2"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Postal Code</label>
+          <input type="text" id="detail-postal" placeholder="Optional" autocomplete="postal-code"/>
+        </div>
+        <div class="field">
+          <label>Country</label>
+          <input type="text" id="detail-country" placeholder="United Arab Emirates" autocomplete="country-name"/>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="saveDetails()">Save Changes</button>
       <div class="form-message" id="name-msg"></div>
     </div>
 
@@ -311,6 +346,13 @@ async function loadCustomer() {
     document.getElementById('account-email-sub').textContent = data.email || '';
     document.getElementById('detail-name').value = data.name || '';
     document.getElementById('detail-email').value = data.email || '';
+    document.getElementById('detail-phone').value = data.phone || '';
+    document.getElementById('detail-line1').value = data.address_line1 || '';
+    document.getElementById('detail-line2').value = data.address_line2 || '';
+    document.getElementById('detail-state').value = data.address_state || '';
+    document.getElementById('detail-city').value = data.address_city || '';
+    document.getElementById('detail-postal').value = data.address_postal || '';
+    document.getElementById('detail-country').value = data.address_country || '';
   } catch(e) {
     document.getElementById('account-email-sub').textContent = customer.email || '';
   }
@@ -382,7 +424,7 @@ async function loadOrders() {
   }
 }
 
-async function saveName() {
+async function saveDetails() {
   const name = document.getElementById('detail-name').value.trim();
   const msg = document.getElementById('name-msg');
   msg.className = 'form-message';
@@ -394,15 +436,22 @@ async function saveName() {
     const res = await fetch('/customer/me', {
       method: 'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({ name })
+      body: JSON.stringify({
+        name,
+        phone: document.getElementById('detail-phone').value.trim(),
+        address_line1: document.getElementById('detail-line1').value.trim(),
+        address_line2: document.getElementById('detail-line2').value.trim(),
+        address_state: document.getElementById('detail-state').value.trim(),
+        address_city: document.getElementById('detail-city').value.trim(),
+        address_postal: document.getElementById('detail-postal').value.trim(),
+        address_country: document.getElementById('detail-country').value.trim(),
+      })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Update failed');
-    // Store new token with updated name
     if (data.token) localStorage.setItem('customer_token', data.token);
     msg.className = 'form-message success';
-    msg.textContent = 'Name updated successfully.';
-    // Refresh nav
+    msg.textContent = 'Details saved successfully.';
     document.getElementById('nav-root').innerHTML = renderNav();
   } catch(e) {
     msg.className = 'form-message error';

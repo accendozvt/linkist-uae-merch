@@ -216,6 +216,15 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
 
 -- Customer phone number on orders
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT DEFAULT '';
+
+-- Customer address + phone fields (for pre-checkout profile save)
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_line1 TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_line2 TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_city TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_state TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_postal TEXT DEFAULT '';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS address_country TEXT DEFAULT '';
 ```
 
 ---
@@ -226,7 +235,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT DEFAULT '';
 |---|---|---|
 | Store front | `/` or `/index.html` | Product catalogue |
 | Product pages | `/circle-edition.html` etc. | Individual product pages |
-| Cart | `/cart.html` | Shopping cart + checkout |
+| Cart | `/cart.html` | Shopping cart |
+| Checkout | `/checkout.html` | Collect name/phone/address before payment |
 | Success | `/success.html` | Post-purchase confirmation |
 | Login / Register | `/account-login.html` | Customer auth |
 | My Account | `/account.html` | Orders + profile |

@@ -624,7 +624,8 @@ async function loadProducts() {
             <div class="product-admin-name">${escHtml(p.name||'')}</div>
             ${!p.active ? '<span class="inactive-badge">INACTIVE</span>' : ''}
           </div>
-          <div class="product-admin-tag">${escHtml(p.tag||p.id||'')}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:9px;color:#444;letter-spacing:1px;margin-bottom:4px;">ID: ${escHtml(p.id||'')}</div>
+          <div class="product-admin-tag">${escHtml(p.tag||'')}</div>
           <div class="product-admin-price">${p.price} <span style="font-family:'DM Sans',sans-serif;font-size:13px;color:#555;">AED</span></div>
           <div class="product-admin-actions">
             <button class="action-btn" onclick="openProductModal('${escHtml(p.id)}')">Edit</button>

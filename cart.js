@@ -84,7 +84,7 @@ function showToast(msg, success = true) {
 
 // ── LOGO SVG ─────────────────────────────────────────────────
 const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 6 22C10 18 14 16 22 5Z" fill="#E53935"/><path d="M22 5C22 5 20 14 12 22C16 22 20 18 22 5Z" fill="#B71C1C"/></svg>`;
-const LOGO_IMG = `<img src="/images/logo.png" alt="Linkist" style="height:28px;width:auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${LOGO_SVG}</span>`;
+const LOGO_IMG = `<img src="/images/linkist-white.png" alt="Linkist" style="height:28px;width:auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${LOGO_SVG}</span>`;
 
 // ── NAV HTML ──────────────────────────────────────────────────
 function renderNav(activePage) {
@@ -164,7 +164,7 @@ const PRODUCTS = [
     price: 149,
     badge: 'BESTSELLER',
     page: 'circle-edition.html',
-    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_02.png?v=1777283800',
+    image: '/images/Linkist%2001.png',
     description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
   },
@@ -176,7 +176,7 @@ const PRODUCTS = [
     price: 149,
     badge: 'NEW',
     page: 'smile-edition.html',
-    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_01.png?v=1777284868',
+    image: '/images/Linkist%2002.png',
     description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
   },
@@ -188,7 +188,7 @@ const PRODUCTS = [
     price: 149,
     badge: null,
     page: 'stripe-edition.html',
-    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_04.png?v=1777283800',
+    image: '/images/Linkist%2003.png',
     description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
   },
@@ -200,7 +200,7 @@ const PRODUCTS = [
     price: 169,
     badge: 'PREMIUM',
     page: 'stealth-edition.html',
-    image: 'https://cdn.shopify.com/s/files/1/0803/8898/0982/files/Linkist_03.png?v=1777283800',
+    image: '/images/Linkist%2004.png',
     description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop']
   }
