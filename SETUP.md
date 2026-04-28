@@ -208,10 +208,14 @@ The `vercel.json` routes all traffic through `server.js` which serves static fil
 
 ## Schema Updates
 
-Run this in Supabase SQL Editor to enable multiple product images:
+Run these in Supabase SQL Editor (Dashboard → SQL Editor → New query):
 
 ```sql
+-- Multiple product images support
 ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]';
+
+-- Customer phone number on orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone TEXT DEFAULT '';
 ```
 
 ---

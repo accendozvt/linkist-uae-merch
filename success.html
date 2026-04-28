@@ -80,10 +80,11 @@ async function loadOrderDetails() {
 // Show account creation prompt if not logged in
 const customer = getCustomer();
 if (!customer) {
+  const linkParam = sessionId ? `&link_session=${encodeURIComponent(sessionId)}` : '';
   const prompt = document.createElement('div');
   prompt.style.cssText = 'margin-top:24px;padding:16px 24px;background:#111;border:1px solid #1e1e1e;border-radius:8px;text-align:center;';
   prompt.innerHTML = `<p style="color:#888;font-size:13px;margin:0 0 10px;">Want to track your order?</p>
-    <a href="account-login.html" class="btn-secondary" style="font-size:12px;padding:10px 20px;">Create an Account →</a>`;
+    <a href="account-login.html?tab=register${linkParam}" class="btn-secondary" style="font-size:12px;padding:10px 20px;">Create an Account →</a>`;
   document.querySelector('.success-wrap').appendChild(prompt);
 }
 

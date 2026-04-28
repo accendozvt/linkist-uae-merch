@@ -498,7 +498,8 @@ function renderOrdersTable(orders, expandable) {
       <td style="font-family:monospace;font-size:11px;">#${orderId}</td>
       <td>
         <div style="font-size:13px;font-weight:500;">${escHtml(o.customer_name || '—')}</div>
-        <div style="font-size:11px;color:#555;">${escHtml(o.customer_email || '')}</div>
+        <div style="font-size:11px;color:#888;">${escHtml(o.customer_email || '')}</div>
+        ${o.customer_phone ? `<div style="font-size:11px;color:#888;">${escHtml(o.customer_phone)}</div>` : ''}
       </td>
       <td style="font-size:12px;color:#888;">${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
       <td style="font-family:'Bebas Neue',sans-serif;font-size:18px;">${total} <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">AED</span></td>
@@ -522,19 +523,29 @@ function renderOrdersTable(orders, expandable) {
       ).join('');
 
       const addr = o.shipping_address;
-      const addrStr = addr ? [addr.line1, addr.line2, addr.city, addr.country].filter(Boolean).join(', ') : '—';
+      const addrLines = addr ? [
+        addr.line1, addr.line2, addr.city,
+        addr.state, addr.postal_code, addr.country
+      ].filter(Boolean) : [];
 
       html += `<tr class="order-detail-row" id="detail-${o.id}">
         <td class="order-detail-cell" colspan="9">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;">
             <div>
-              <div style="font-size:10px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Items</div>
-              ${itemRows || '<div style="color:#444;font-size:12px;">No items</div>'}
+              <div style="font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Items</div>
+              ${itemRows || '<div style="color:#666;font-size:12px;">No items</div>'}
             </div>
             <div>
-              <div style="font-size:10px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Shipping Address</div>
-              <div style="font-size:12px;color:#ccc;">${escHtml(addrStr)}</div>
+              <div style="font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Ship To</div>
+              <div style="font-size:13px;font-weight:500;color:#fff;margin-bottom:4px;">${escHtml(o.customer_name || '—')}</div>
+              ${addrLines.map(l => `<div style="font-size:12px;color:#ccc;line-height:1.6;">${escHtml(l)}</div>`).join('')}
+              ${!addrLines.length ? '<div style="font-size:12px;color:#555;">No address captured</div>' : ''}
               ${o.tracking_number ? `<div style="margin-top:8px;font-size:11px;color:#a09aff;">Tracking: ${escHtml(o.tracking_number)}</div>` : ''}
+            </div>
+            <div>
+              <div style="font-size:10px;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Contact</div>
+              <div style="font-size:12px;color:#ccc;margin-bottom:4px;">${escHtml(o.customer_email || '—')}</div>
+              <div style="font-size:12px;color:#ccc;">${escHtml(o.customer_phone || '—')}</div>
             </div>
           </div>
           ${o.status === 'shipped' ? `

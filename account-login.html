@@ -205,9 +205,20 @@ if (existing) window.location.href = 'account.html';
 
 document.getElementById('nav-root').innerHTML = renderNav();
 
-// Check if we were sent here from a ?tab=register link
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'register') switchAuthTab('register');
+const linkSession = urlParams.get('link_session') || null;
+
+async function linkGuestOrder(token) {
+  if (!linkSession) return;
+  try {
+    await fetch('/customer/link-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ session_id: linkSession })
+    });
+  } catch(e) { /* non-critical */ }
+}
 
 function switchAuthTab(tab) {
   document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
@@ -241,6 +252,7 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
     localStorage.setItem('customer_token', data.token);
+    await linkGuestOrder(data.token);
     window.location.href = 'account.html';
   } catch (err) {
     errEl.textContent = err.message;
@@ -284,6 +296,7 @@ async function doRegister() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');
     localStorage.setItem('customer_token', data.token);
+    await linkGuestOrder(data.token);
     window.location.href = 'account.html';
   } catch (err) {
     errEl.textContent = err.message;

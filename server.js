@@ -122,6 +122,7 @@ app.post('/create-checkout', async (req, res) => {
       success_url: `${origin}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cart.html`,
       billing_address_collection: 'required',
+      phone_number_collection: { enabled: true },
       shipping_address_collection: {
         allowed_countries: ['AE', 'SA', 'KW', 'BH', 'QA', 'OM', 'IN', 'GB', 'US'],
       },
@@ -170,6 +171,7 @@ app.post('/webhook', async (req, res) => {
         currency: 'aed',
         customer_name: session.shipping_details?.name || session.customer_details?.name || '',
         customer_email: session.customer_details?.email || '',
+        customer_phone: session.customer_details?.phone || '',
         customer_id: customerId || null,
         shipping_address: session.shipping_details?.address || null,
       };
@@ -192,21 +194,15 @@ app.post('/webhook', async (req, res) => {
             }))
           );
 
-          // Deduct stock
+          // Deduct stock — read then update (supabase-js never throws, .catch() is unreliable)
           for (const item of items) {
-            await supabase.rpc('decrement_stock', { p_product_id: item.id, p_size: item.size, p_qty: item.qty })
-              .catch(() => {
-                // Fallback if RPC not available
-                return supabase.from('stock')
-                  .select('quantity').eq('product_id', item.id).eq('size', item.size).single()
-                  .then(({ data }) => {
-                    if (data) {
-                      return supabase.from('stock')
-                        .update({ quantity: Math.max(0, data.quantity - item.qty), updated_at: new Date().toISOString() })
-                        .eq('product_id', item.id).eq('size', item.size);
-                    }
-                  });
-              });
+            const { data: stockRow } = await supabase.from('stock')
+              .select('quantity').eq('product_id', item.id).eq('size', item.size).single();
+            if (stockRow) {
+              await supabase.from('stock')
+                .update({ quantity: Math.max(0, stockRow.quantity - item.qty), updated_at: new Date().toISOString() })
+                .eq('product_id', item.id).eq('size', item.size);
+            }
           }
         }
 
@@ -620,6 +616,24 @@ app.put('/customer/me', requireCustomer, async (req, res) => {
     if (error) throw error;
     const token = makeToken(customer);
     res.json({ token, customer });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Link a guest order to a newly registered/logged-in customer
+app.post('/customer/link-order', requireCustomer, async (req, res) => {
+  try {
+    const { session_id } = req.body;
+    if (!session_id) return res.status(400).json({ error: 'session_id required' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data, error } = await supabase.from('orders')
+      .update({ customer_id: req.customer.customerId })
+      .eq('stripe_session_id', session_id)
+      .is('customer_id', null)
+      .select('id').single();
+    if (error) throw error;
+    res.json({ linked: !!data, orderId: data?.id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
