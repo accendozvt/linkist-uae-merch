@@ -11,6 +11,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is required');
+const JWT_SECRET = process.env.JWT_SECRET;
+
 const supabase = process.env.SUPABASE_URL
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   : null;
@@ -37,7 +40,7 @@ function requireCustomer(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    req.customer = jwt.verify(auth.slice(7), process.env.JWT_SECRET || 'dev-secret');
+    req.customer = jwt.verify(auth.slice(7), JWT_SECRET);
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -47,7 +50,7 @@ function requireCustomer(req, res, next) {
 function makeToken(customer) {
   return jwt.sign(
     { customerId: customer.id, email: customer.email, name: customer.name },
-    process.env.JWT_SECRET || 'dev-secret',
+    JWT_SECRET,
     { expiresIn: '30d' }
   );
 }
