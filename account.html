@@ -413,10 +413,10 @@ async function loadOrders() {
         </div>
         <div class="order-card-items">${itemsHtml}</div>
         <div class="order-card-footer">
-          <a href="/invoice/${order.id}" target="_blank" class="btn-secondary" style="font-size:12px;padding:9px 18px;">
+          <button onclick="downloadInvoice('${order.id}')" class="btn-secondary" style="font-size:12px;padding:9px 18px;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Invoice
-          </a>
+          </button>
           ${order.tracking_number ? `<span style="font-family:'Space Mono',monospace;font-size:10px;color:#a09aff;letter-spacing:1px;">Tracking: ${escHtml(order.tracking_number)}</span>` : ''}
         </div>
       </div>`;
@@ -496,6 +496,19 @@ async function changePassword() {
     msg.className = 'form-message error';
     msg.textContent = e.message;
   }
+}
+
+async function downloadInvoice(orderId) {
+  try {
+    const res = await fetch(`/invoice/${orderId}`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('customer_token') } });
+    if (!res.ok) { alert('Could not download invoice.'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `invoice-${orderId.slice(0,8).toUpperCase()}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch { alert('Could not download invoice.'); }
 }
 
 function escHtml(str) {
