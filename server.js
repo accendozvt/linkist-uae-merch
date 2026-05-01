@@ -556,27 +556,37 @@ app.post('/webhook', async (req, res) => {
           }
         }
 
-        // Send emails
-        const orderWithItems = { ...order, items };
-        await sendBuyerEmail(orderWithItems).catch(e => console.error('Buyer email failed:', e.message));
-        await sendSellerEmail(orderWithItems).catch(e => console.error('Seller email failed:', e.message));
-
-        // First-purchase coupon for linkist.ai — UNIQUE(email) ensures one-per-user
+        // Issue first-purchase coupon BEFORE sending buyer email so the code
+        // can be included in the order confirmation. UNIQUE(email) guarantees
+        // only one coupon per buyer; subsequent orders won't generate a new code.
+        let couponCode = null;
+        let isNewCoupon = false;
         try {
           const issued = await issueCouponForEmail({
             email: order.customer_email,
             name: order.customer_name,
             orderId: order.id
           });
-          if (issued && !issued.alreadyHad) {
-            await sendCouponEmail({
-              email: order.customer_email,
-              name: order.customer_name,
-              code: issued.code
-            }).catch(e => console.error('Coupon email failed:', e.message));
+          if (issued) {
+            couponCode = issued.code;
+            isNewCoupon = !issued.alreadyHad;
           }
         } catch (e) {
           console.error('[coupon] issue failed:', e.message);
+        }
+
+        // Send emails — buyer email now includes the coupon code inline
+        const orderWithItems = { ...order, items, coupon_code: couponCode };
+        await sendBuyerEmail(orderWithItems).catch(e => console.error('Buyer email failed:', e.message));
+        await sendSellerEmail(orderWithItems).catch(e => console.error('Seller email failed:', e.message));
+
+        // Dedicated coupon email — only on first-ever purchase for that email
+        if (isNewCoupon && couponCode) {
+          await sendCouponEmail({
+            email: order.customer_email,
+            name: order.customer_name,
+            code: couponCode
+          }).catch(e => console.error('Coupon email failed:', e.message));
         }
       }
     } catch (err) {
@@ -589,20 +599,37 @@ app.post('/webhook', async (req, res) => {
 
 // ── Email helpers ───────────────────────────────────────────────
 
-// Resend SDK returns { data, error } and does NOT throw. Wrap to make errors actually surface.
+// Resend free tier = 2 emails/sec — serialize sends and back off on 429.
+let _emailQueue = Promise.resolve();
 async function sendMail(payload) {
   if (!resend) {
     console.error('[email] resend not configured (RESEND_API_KEY missing)');
     throw new Error('Email service not configured');
   }
-  const result = await resend.emails.send(payload);
-  if (result?.error) {
-    const errStr = JSON.stringify(result.error);
-    console.error('[email] Resend rejected:', errStr, '— payload to:', payload.to, 'subject:', payload.subject);
-    throw new Error(`Resend error: ${result.error.message || errStr}`);
-  }
-  console.log('[email] sent OK id=', result?.data?.id, 'to=', payload.to, 'subject=', payload.subject);
-  return result.data;
+  // Chain onto a single sequential queue
+  const ticket = _emailQueue.then(async () => {
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      const result = await resend.emails.send(payload);
+      if (!result?.error) {
+        console.log('[email] sent OK id=', result?.data?.id, 'to=', payload.to, 'subject=', payload.subject);
+        return result.data;
+      }
+      const msg = result.error.message || JSON.stringify(result.error);
+      const isRate = /rate.?limit|too.?many|429/i.test(msg) || result.error.statusCode === 429 || result.error.name === 'rate_limit_exceeded';
+      if (isRate && attempt < 4) {
+        const wait = 700 * attempt;
+        console.warn(`[email] rate-limited, retry ${attempt} in ${wait}ms — to:`, payload.to, 'subject:', payload.subject);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      console.error('[email] Resend rejected:', msg, '— to:', payload.to, 'subject:', payload.subject);
+      throw new Error(`Resend error: ${msg}`);
+    }
+    throw new Error('Resend error: rate limit retries exhausted');
+  });
+  // Make queue resilient: never let a rejected ticket break future sends
+  _emailQueue = ticket.catch(() => {}).then(() => new Promise(r => setTimeout(r, 600)));
+  return ticket;
 }
 
 
@@ -665,6 +692,16 @@ function buyerEmailHtml(order, items) {
   ${addrText ? `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 28px;">
     <div style="font-size:10px;letter-spacing:2px;color:#555;text-transform:uppercase;margin-bottom:10px;">Shipping To</div>
     <div style="color:#ccc;font-size:13px;line-height:1.7;">${escHtml(order.customer_name)}<br>${addrText}</div>
+  </td></tr></table>` : ''}
+  ${order.coupon_code ? `<table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 28px;">
+    <div style="border:1px dashed #C8102E;border-radius:12px;background:#0f0a0a;padding:24px 20px;text-align:center;">
+      <div style="display:inline-block;padding:4px 12px;background:rgba(229,57,53,0.12);border:1px solid rgba(229,57,53,0.3);border-radius:100px;font-size:9px;letter-spacing:2px;color:#E53935;text-transform:uppercase;margin-bottom:14px;">Bonus · For You</div>
+      <div style="font-size:15px;color:#fff;font-weight:bold;margin-bottom:6px;">Your exclusive Linkist.ai coupon</div>
+      <div style="font-size:12px;color:#888;line-height:1.6;margin-bottom:14px;">Unlock an additional limited-time discount on Linkist.ai — the world's first <strong style="color:#aaa;">Personal Relationship Manager (PRM)</strong>.</div>
+      <div style="font-family:'Courier New',monospace;font-size:24px;font-weight:bold;color:#fff;letter-spacing:4px;background:#0a0a0a;padding:14px 12px;border-radius:8px;border:1px solid #1e1e1e;display:inline-block;">${escHtml(order.coupon_code)}</div>
+      <div style="font-size:11px;color:#666;margin-top:12px;">Bound to <strong style="color:#aaa;">${escHtml(order.customer_email || '')}</strong> · Sign up on Linkist.ai with the same email and apply this code.</div>
+      <div style="margin-top:18px;"><a href="${LINKIST_PARENT_URL}/?coupon=${encodeURIComponent(order.coupon_code)}" style="display:inline-block;background:#E53935;color:#ffffff;font-size:12px;font-weight:bold;text-decoration:none;padding:11px 28px;border-radius:6px;letter-spacing:1px;">REDEEM ON LINKIST.AI →</a></div>
+    </div>
   </td></tr></table>` : ''}
   <!-- Message -->
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 32px;">
