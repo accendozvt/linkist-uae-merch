@@ -192,7 +192,7 @@ function isRateLimited(key, max, windowMs) {
 }
 
 // Whitelist origins used to build Stripe redirect URLs
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'linkist.ai,ineverleft.linkist.ai,localhost').split(',');
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'linkist.ai,ineverleft.linkist.ai,linkist-uae-merch.vercel.app,localhost').split(',');
 function safeOrigin(req) {
   const origin = req.headers.origin || '';
   try {
