@@ -236,6 +236,8 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     <button class="tab-btn" onclick="switchTab('orders', this)">Orders</button>
     <button class="tab-btn" onclick="switchTab('products', this)">Products</button>
     <button class="tab-btn" onclick="switchTab('stock', this)">Stock</button>
+    <button class="tab-btn" onclick="switchTab('customers', this)">Customers</button>
+    <button class="tab-btn" onclick="switchTab('uploads', this)">Images</button>
   </div>
 
   <!-- Overview Tab -->
@@ -294,6 +296,36 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     </div>
     <div class="stock-table-wrap">
       <div id="stock-body"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- Customers Tab -->
+  <div class="tab-content" id="tab-customers">
+    <div class="section-hdr">
+      <div class="section-title-sm">Customers</div>
+      <button class="btn-primary" onclick="downloadCustomerCSV()">⬇ Download CSV</button>
+    </div>
+    <div class="table-wrap">
+      <div id="customers-table-body"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- Image Upload Tab -->
+  <div class="tab-content" id="tab-uploads">
+    <div class="section-hdr">
+      <div class="section-title-sm">Product Images</div>
+    </div>
+    <div class="table-wrap" style="padding:24px;">
+      <p style="font-size:13px;color:#888;margin:0 0 20px;">Upload product images directly to the server. Supported: JPG, PNG, WEBP, GIF (max 5 MB each).</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:24px;">
+        <input type="file" id="img-upload-input" multiple accept="image/*" style="background:#0a0a0a;border:1px solid #2a2a2a;border-radius:6px;color:#F5F5F5;font-size:13px;padding:8px 12px;font-family:'DM Sans',sans-serif;flex:1;min-width:200px;"/>
+        <button class="btn-primary" onclick="uploadImages()">Upload Images</button>
+      </div>
+      <div id="upload-feedback" style="font-size:13px;margin-bottom:20px;display:none;"></div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;">Uploaded Images</div>
+      <div id="upload-img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;">
+        <div class="loading" style="grid-column:1/-1;">Loading...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -427,6 +459,8 @@ function switchTab(name, btn) {
   if (name === 'products') loadProducts();
   if (name === 'stock') loadStock();
   if (name === 'overview') { loadStats(); loadRecentOrders(); }
+  if (name === 'customers') loadCustomers();
+  if (name === 'uploads') loadUploadedImages();
 }
 
 // ── Stats ──────────────────────────────────────────
@@ -840,6 +874,93 @@ async function saveStock(productId, size, quantity, inputEl) {
     inputEl.style.borderColor = '#E53935';
     alert('Error saving stock: ' + e.message);
   }
+}
+
+// ── Customers ─────────────────────────────────────
+async function loadCustomers() {
+  const body = document.getElementById('customers-table-body');
+  try {
+    const customers = await api('/admin/customers');
+    if (!customers.length) { body.innerHTML = '<div class="loading">No customers yet</div>'; return; }
+    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead><tbody>`;
+    customers.forEach(c => {
+      const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—';
+      html += `<tr>
+        <td>${escHtml(c.name || '—')}</td>
+        <td style="font-size:12px;color:#888;">${escHtml(c.email || '')}</td>
+        <td style="font-size:12px;color:#888;">${escHtml(c.phone || '—')}</td>
+        <td style="font-size:12px;color:#555;">${date}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    body.innerHTML = html;
+  } catch(e) { body.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
+}
+
+async function downloadCustomerCSV() {
+  try {
+    const res = await fetch('/admin/customers/csv', {
+      headers: { 'x-admin-email': adminEmail, 'x-admin-password': adminPassword }
+    });
+    if (!res.ok) throw new Error('Failed to download CSV');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'customers.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Image Upload ────────────────────────────────────
+async function loadUploadedImages() {
+  const grid = document.getElementById('upload-img-grid');
+  try {
+    const res = await fetch('/admin/images', {
+      headers: { 'x-admin-email': adminEmail, 'x-admin-password': adminPassword }
+    });
+    const images = res.ok ? await res.json() : [];
+    if (!images.length) { grid.innerHTML = '<div style="grid-column:1/-1;color:#555;font-size:12px;font-family:monospace;">No images uploaded yet.</div>'; return; }
+    grid.innerHTML = images.map(img => `
+      <div style="position:relative;background:#0d0d0d;border-radius:8px;overflow:hidden;aspect-ratio:1/1;border:1px solid #1e1e1e;">
+        <img src="${escHtml(img.url)}" alt="${escHtml(img.name)}" loading="lazy"
+          style="width:100%;height:100%;object-fit:cover;display:block;"
+          onclick="copyToClipboard('${escHtml(img.url)}')" title="Click to copy URL: ${escHtml(img.url)}"/>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);padding:4px 6px;font-size:9px;color:#aaa;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(img.name)}</div>
+      </div>`).join('');
+  } catch(e) { grid.innerHTML = '<div style="grid-column:1/-1;color:#E53935;font-size:12px;">Error loading images</div>'; }
+}
+
+async function uploadImages() {
+  const input = document.getElementById('img-upload-input');
+  const fb = document.getElementById('upload-feedback');
+  if (!input.files.length) { fb.textContent = 'Please select at least one image.'; fb.style.color='#E53935'; fb.style.display='block'; return; }
+  fb.textContent = 'Uploading…'; fb.style.color='#888'; fb.style.display='block';
+  const formData = new FormData();
+  Array.from(input.files).forEach(f => formData.append('images', f));
+  try {
+    const res = await fetch('/admin/images/upload', {
+      method: 'POST',
+      headers: { 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
+      body: formData
+    });
+    const data = await res.json();
+    if (res.ok) {
+      fb.textContent = `✓ Uploaded ${data.files.length} image(s) successfully.`;
+      fb.style.color = '#007A3D';
+      input.value = '';
+      _imagesCache = null; // reset picker cache
+      loadUploadedImages();
+    } else {
+      fb.textContent = data.error || 'Upload failed';
+      fb.style.color = '#E53935';
+    }
+  } catch(e) { fb.textContent = 'Upload error: ' + e.message; fb.style.color='#E53935'; }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => alert('URL copied: ' + text)).catch(() => prompt('Copy this URL:', text));
 }
 
 // ── Utilities ──────────────────────────────────────

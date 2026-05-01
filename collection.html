@@ -39,6 +39,25 @@
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
 .pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; }
 .pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
+.price-was { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:400; color:#555; text-decoration:line-through; margin-right:4px; }
+.price-sale { color:#E53935; }
+.pcard-img-dots { position:absolute; bottom:8px; left:0; right:0; display:flex; justify-content:center; gap:5px; z-index:2; }
+.pcard-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.35); cursor:pointer; transition:background 0.2s; display:inline-block; }
+.pcard-dot.active { background:#fff; }
+.notify-btn {
+  display:block; width:calc(100% - 32px); margin:0 16px 14px;
+  padding:8px; background:transparent; border:1px solid #2a2a2a; border-radius:6px;
+  color:#666; font-family:'Space Mono',monospace; font-size:9px;
+  letter-spacing:0.08em; cursor:pointer; transition:all 0.2s; text-align:center;
+}
+.notify-btn:hover { border-color:#C8102E; color:#fff; }
+.notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
+.notify-modal-overlay.open { display:flex; }
+.notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; position:relative; }
+.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
+.notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+.notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; }
 .pcard-cta {
   display:flex; align-items:center; justify-content:center; gap:6px;
   background:rgba(255,255,255,0.06); border-radius:6px; padding:9px;
@@ -68,6 +87,17 @@
 
 <div id="footer-root"></div>
 
+<div class="notify-modal-overlay" id="notify-modal">
+  <div class="notify-modal">
+    <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
+    <h3>🔔 Notify Me</h3>
+    <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
+    <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
+    <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
+    <div id="notify-feedback" style="font-size:12px;margin-top:10px;display:none;"></div>
+  </div>
+</div>
+
 <script src="cart.js"></script>
 <script>
 document.getElementById('nav-root').innerHTML = renderNav('collection');
@@ -80,25 +110,55 @@ function renderProductCard(p) {
   const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
   const soldOut = totalStock !== null && totalStock === 0;
   const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
+  const extraImgs = Array.isArray(p.images) ? p.images : [];
+  const allImgs = [image, ...extraImgs].filter(Boolean);
+  const origPrice = p.originalPrice || p.original_price;
+  const priceHtml = origPrice
+    ? `<span class="price-was">${origPrice}</span><span class="price-sale">${p.price} <span>AED</span></span>`
+    : `${p.price} <span>AED</span>`;
   return `
-  <a href="${page}" class="pcard${soldOut ? ' pcard-soldout' : ''}">
-    <div class="pcard-img">
-      <img src="${image}" alt="${p.name}" loading="lazy"/>
-      ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
-      ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
-    </div>
-    <div class="pcard-info">
-      <div>
-        <div class="pcard-name">${p.name}</div>
-        <div class="pcard-tag">${p.tag || ''}</div>
+  <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="cpcard-${p.id}"${allImgs.length > 1 ? ` data-images='${JSON.stringify(allImgs)}'` : ''}>
+    <a href="${page}" class="pcard-img-link" style="text-decoration:none;color:inherit;display:block;">
+      <div class="pcard-img">
+        <img src="${image}" alt="${p.name}" loading="lazy" id="cpcard-img-${p.id}"/>
+        ${allImgs.length > 1 ? `<div class="pcard-img-dots" id="cpcard-dots-${p.id}">${allImgs.map((_,i)=>`<span class="pcard-dot${i===0?' active':''}" onclick="event.preventDefault();cpcardSetImg('${p.id}',${i})"></span>`).join('')}</div>` : ''}
+        ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+        ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
       </div>
-      <div class="pcard-price">${p.price} <span>AED</span></div>
-      <div class="pcard-cta">
-        ${soldOut ? 'Sold Out' : 'View & Buy'}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <div class="pcard-info">
+        <div>
+          <div class="pcard-name">${p.name}</div>
+          <div class="pcard-tag">${p.tag || ''}</div>
+        </div>
+        <div class="pcard-price">${priceHtml}</div>
+        <div class="pcard-cta">
+          ${soldOut ? 'Sold Out' : 'View & Buy'}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
       </div>
-    </div>
-  </a>`;
+    </a>
+    ${soldOut ? `<button class="notify-btn" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}','')">🔔 Notify me when back</button>` : ''}
+  </div>`;
+}
+
+function cpcardSetImg(pid, idx) {
+  const card = document.getElementById('cpcard-' + pid);
+  if (!card) return;
+  const imgs = JSON.parse(card.dataset.images || '[]');
+  const imgEl = document.getElementById('cpcard-img-' + pid);
+  if (imgEl && imgs[idx]) imgEl.src = imgs[idx];
+  document.querySelectorAll(`#cpcard-dots-${pid} .pcard-dot`).forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+function initCardCarousels() {
+  document.querySelectorAll('.pcard[data-images]').forEach(card => {
+    const imgs = JSON.parse(card.dataset.images);
+    if (imgs.length <= 1) return;
+    const pid = card.id.replace('cpcard-', '');
+    let idx = 0;
+    setInterval(() => { idx = (idx + 1) % imgs.length; cpcardSetImg(pid, idx); }, 2500);
+    card.addEventListener('mouseleave', () => { idx = 0; cpcardSetImg(pid, 0); });
+  });
 }
 
 fetch('/products')
@@ -108,12 +168,40 @@ fetch('/products')
     const grid = document.getElementById('collection-grid');
     grid.className = 'collection-grid';
     grid.innerHTML = list.map(renderProductCard).join('');
+    initCardCarousels();
   })
   .catch(() => {
     const grid = document.getElementById('collection-grid');
     grid.className = 'collection-grid';
     grid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+    initCardCarousels();
   });
+
+let _notifyPid = '', _notifySize = '';
+function openNotifyModal(pid, pname, size) {
+  _notifyPid = pid; _notifySize = size;
+  document.getElementById('notify-modal-desc').innerHTML = size
+    ? `We'll email you when <strong>${pname}</strong> in size <strong>${size}</strong> is back.`
+    : `We'll email you when <strong>${pname}</strong> is back in stock.`;
+  document.getElementById('notify-email').value = '';
+  document.getElementById('notify-feedback').style.display = 'none';
+  document.getElementById('notify-modal').classList.add('open');
+}
+function closeNotifyModal() { document.getElementById('notify-modal').classList.remove('open'); }
+async function submitNotify() {
+  const email = document.getElementById('notify-email').value.trim();
+  if (!email) return;
+  const fb = document.getElementById('notify-feedback');
+  try {
+    const res = await fetch('/notify-me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, product_id: _notifyPid, size: _notifySize }) });
+    const data = await res.json();
+    if (res.ok) { fb.textContent = "✓ You're on the list!"; fb.style.color = '#007A3D'; fb.style.display = 'block'; setTimeout(closeNotifyModal, 2000); }
+    else { fb.textContent = data.error || 'Error'; fb.style.color = '#E53935'; fb.style.display = 'block'; }
+  } catch { fb.textContent = 'Could not connect.'; fb.style.color = '#E53935'; fb.style.display = 'block'; }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('notify-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('notify-modal')) closeNotifyModal(); });
+});
 </script>
 </body>
 </html>

@@ -89,21 +89,37 @@
 
 /* CAUSE */
 .cause {
-  padding:80px 64px; max-width:1200px; margin:0 auto;
-  display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:start;
+  padding:80px 64px 40px; max-width:1200px; margin:0 auto;
+  display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;
 }
 .cause-label { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:0.2em; color:#E53935; text-transform:uppercase; margin-bottom:12px; display:block; }
 .cause-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,4.5vw,56px); line-height:1; margin-bottom:16px; }
 .cause-body { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
 .cause-body p+p { margin-top:12px; }
 .cause-body strong { color:#F5F5F5; font-weight:500; }
-.stats { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.stat { background:#111; border:1px solid #1e1e1e; border-radius:10px; padding:22px 18px; position:relative; overflow:hidden; }
+.cause-team-img { width:100%; border-radius:12px; overflow:hidden; aspect-ratio:4/3; object-fit:cover; display:block; }
+/* Stats row below story */
+.stats-row {
+  max-width:1200px; margin:0 auto; padding:0 64px 80px;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+}
+.stat { background:#111; border:1px solid #1e1e1e; border-radius:10px; padding:16px 14px; position:relative; overflow:hidden; }
 .stat::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
 .stat:nth-child(1)::before{background:#C8102E} .stat:nth-child(2)::before{background:#fff}
 .stat:nth-child(3)::before{background:#007A3D} .stat:nth-child(4)::before{background:#E53935}
-.stat-num { font-family:'Bebas Neue',sans-serif; font-size:38px; line-height:1; margin-bottom:4px; color:#F5F5F5; display:block; }
-.stat-lbl { font-size:11px; font-weight:300; color:#999; line-height:1.4; }
+.stat-num { font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:1; margin-bottom:4px; color:#F5F5F5; display:block; }
+.stat-lbl { font-size:10px; font-weight:300; color:#999; line-height:1.4; }
+/* Notify me */
+.notify-btn {
+  display:none; width:100%; margin-top:10px; padding:8px;
+  background:transparent; border:1px solid #333; border-radius:6px;
+  color:#888; font-family:'Space Mono',monospace; font-size:9px;
+  letter-spacing:0.08em; cursor:pointer; transition:all 0.2s; text-align:center;
+}
+.notify-btn:hover { border-color:#C8102E; color:#fff; }
+/* Sale price */
+.price-was { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:400; color:#555; text-decoration:line-through; margin-right:4px; }
+.pcard-price-sale { color:#E53935; }
 
 /* COLLECTION */
 .collection { padding:0 64px 100px; max-width:1200px; margin:0 auto; }
@@ -167,14 +183,28 @@
   font-family:'Space Mono',monospace; font-size:10px; color:#555;
 }
 
-@media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px} .collection{padding:0 40px 80px} }
+@media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px 32px} .stats-row{padding:0 40px 80px;grid-template-columns:repeat(2,1fr)} .collection{padding:0 40px 80px} }
 @media(max-width:640px) {
-  .cause{grid-template-columns:1fr;gap:40px;padding:48px 20px}
+  .cause{grid-template-columns:1fr;gap:32px;padding:48px 20px 24px}
+  .stats-row{padding:0 20px 60px;grid-template-columns:repeat(2,1fr);gap:10px}
   .collection{padding:0 20px 60px}
   .products-grid{grid-template-columns:1fr 1fr;gap:10px}
   .section-hdr{flex-direction:column;align-items:flex-start}
 }
-@media(max-width:400px) { .products-grid{grid-template-columns:1fr} }
+@media(max-width:400px) { .products-grid{grid-template-columns:1fr} .stats-row{grid-template-columns:1fr 1fr} }
+/* Image dots */
+.pcard-img-dots { position:absolute; bottom:8px; left:0; right:0; display:flex; justify-content:center; gap:5px; z-index:2; }
+.pcard-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.35); cursor:pointer; transition:background 0.2s; display:inline-block; }
+.pcard-dot.active { background:#fff; }
+/* Notify modal */
+.notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
+.notify-modal-overlay.open { display:flex; }
+.notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; }
+.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
+.notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+.notify-modal input:focus { border-color:#555; }
+.notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; line-height:1; }
 </style>
 </head>
 <body>
@@ -214,7 +244,7 @@
   </a>
 
   <div class="hero-hashtags">
-    <span>#IstandwithUAE</span><span class="sep">·</span>
+    <span>#WeStandWithUAE</span><span class="sep">·</span>
     <span>#BornInTheUAE</span><span class="sep">·</span>
     <span>linkist.ai</span>
   </div>
@@ -232,12 +262,16 @@
       <p><strong>"I Never Left"</strong> is not just a statement on a shirt. It is the truth of who we are.</p>
     </div>
   </div>
-  <div class="stats">
-    <div class="stat"><span class="stat-num">100%</span><span class="stat-lbl">Proceeds to UAE relief efforts</span></div>
-    <div class="stat"><span class="stat-num">4</span><span class="stat-lbl">Limited design variants</span></div>
-    <div class="stat"><span class="stat-num">APR<br>2026</span><span class="stat-lbl">Drop Date</span></div>
-    <div class="stat"><span class="stat-num" style="color:#E53935">UAE</span><span class="stat-lbl">Born here. Standing here.</span></div>
+  <div>
+    <img src="/images/team.png" alt="Linkist Team" class="cause-team-img" onerror="this.style.display='none'"/>
   </div>
+</div>
+<!-- STATS ROW -->
+<div class="stats-row">
+  <div class="stat"><span class="stat-num">100%</span><span class="stat-lbl">Proceeds to UAE relief efforts</span></div>
+  <div class="stat"><span class="stat-num">4</span><span class="stat-lbl">Limited design variants</span></div>
+  <div class="stat"><span class="stat-num">APR 2026</span><span class="stat-lbl">Drop Date</span></div>
+  <div class="stat"><span class="stat-num" style="color:#E53935">UAE</span><span class="stat-lbl">Born here. Standing here.</span></div>
 </div>
 
 <!-- COLLECTION -->
@@ -250,6 +284,18 @@
 </div>
 
 <div id="footer-root"></div>
+
+<!-- Notify Me Modal -->
+<div class="notify-modal-overlay" id="notify-modal">
+  <div class="notify-modal" style="position:relative;">
+    <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
+    <h3>🔔 Notify Me</h3>
+    <p id="notify-modal-desc">Enter your email and we'll let you know when this size is back in stock.</p>
+    <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
+    <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
+    <div id="notify-feedback" style="font-size:12px;color:#007A3D;margin-top:10px;display:none;"></div>
+  </div>
+</div>
 
 <script src="cart.js"></script>
 <script>
@@ -264,32 +310,45 @@ function renderProductCard(p) {
   const soldOut = totalStock !== null && totalStock === 0;
   const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
   const stock = p.stock || {};
+  const extraImgs = Array.isArray(p.images) ? p.images : [];
+  const allImgs = [image, ...extraImgs].filter(Boolean);
+  const origPrice = p.originalPrice || p.original_price;
 
   const sizeBtns = SIZES.map(s => {
     const qty = stock[s] !== undefined ? stock[s] : 999;
     return qty === 0
-      ? `<button class="sz sold-out" disabled>${s}</button>`
+      ? `<button class="sz sold-out" disabled title="Sold out">${s}</button>`
       : `<button class="sz" data-size="${s}" onclick="qaSize('${p.id}',this)">${s}</button>`;
   }).join('');
 
+  const hasSoldOutSizes = SIZES.some(s => (stock[s] !== undefined ? stock[s] : 999) === 0);
+
+  const priceHtml = origPrice
+    ? `<span class="price-was">${origPrice}</span><span class="pcard-price-sale">${p.price} <span>AED</span></span>`
+    : `${p.price} <span>AED</span>`;
+
   return `
-  <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="pcard-${p.id}">
+  <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="pcard-${p.id}"${allImgs.length > 1 ? ` data-images='${JSON.stringify(allImgs)}'` : ''}>
     <a href="${page}" class="pcard-img-link">
       <div class="pcard-img">
-        <img src="${image}" alt="${p.name}" loading="lazy"/>
+        <img src="${image}" alt="${p.name}" loading="lazy" id="pcard-img-${p.id}"/>
+        ${allImgs.length > 1 ? `<div class="pcard-img-dots" id="pcard-dots-${p.id}">${allImgs.map((_,i)=>`<span class="pcard-dot${i===0?' active':''}" onclick="event.preventDefault();pcardSetImg('${p.id}',${i})"></span>`).join('')}</div>` : ''}
         ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
         ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
       </div>
       <div class="pcard-info">
         <div class="pcard-name">${p.name}</div>
         <div class="pcard-tag">${p.tag || ''}</div>
-        <div class="pcard-price">${p.price} <span>AED</span></div>
+        <div class="pcard-price">${priceHtml}</div>
       </div>
     </a>
     ${soldOut
-      ? `<div class="pcard-soldout-label">Sold Out</div>`
+      ? `<div class="pcard-soldout-label">Sold Out
+           <button class="notify-btn" style="display:block;margin-top:8px;" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}','')">🔔 Notify me when back</button>
+         </div>`
       : `<div class="pcard-quickadd">
           <div class="pcard-qa-sizes" id="qa-sizes-${p.id}">${sizeBtns}</div>
+          ${hasSoldOutSizes ? `<button class="notify-btn" id="qa-notify-${p.id}" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}', getSelectedOrFirstSoldOut('${p.id}'))">🔔 Notify me when my size is back</button>` : ''}
           <div class="pcard-qa-bottom">
             <div class="qty-wrap">
               <button class="qty-btn" onclick="qaQty('${p.id}',-1)">−</button>
@@ -304,13 +363,28 @@ function renderProductCard(p) {
   </div>`;
 }
 
+function pcardSetImg(pid, idx) {
+  const card = document.getElementById('pcard-' + pid);
+  if (!card) return;
+  const imgs = JSON.parse(card.dataset.images || '[]');
+  const imgEl = document.getElementById('pcard-img-' + pid);
+  if (imgEl && imgs[idx]) imgEl.src = imgs[idx];
+  document.querySelectorAll(`#pcard-dots-${pid} .pcard-dot`).forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
 function qaSize(pid, btn) {
   document.querySelectorAll(`#qa-sizes-${pid} .sz`).forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 function qaQty(pid, delta) {
   const el = document.getElementById(`qa-qty-${pid}`);
-  el.textContent = Math.max(1, Math.min(10, parseInt(el.textContent) + delta));
+  el.textContent = Math.max(1, Math.min(5, parseInt(el.textContent) + delta));
+}
+function getSelectedOrFirstSoldOut(pid) {
+  const active = document.querySelector(`#qa-sizes-${pid} .sz.active`);
+  if (active) return active.dataset.size || '';
+  const soldOut = document.querySelector(`#qa-sizes-${pid} .sz.sold-out`);
+  return soldOut ? (soldOut.textContent || '') : '';
 }
 function qaAdd(pid, name, price, image) {
   const activeSize = document.querySelector(`#qa-sizes-${pid} .sz.active`);
@@ -341,10 +415,73 @@ fetch('/products')
     if ((products.length ? products : PRODUCTS).length > 9) {
       grid.insertAdjacentHTML('afterend', '<div style="text-align:center;margin-top:32px"><a href="collection.html" class="btn-primary" style="display:inline-block;padding:14px 36px;text-decoration:none;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.1em">VIEW ALL →</a></div>');
     }
+    initCardCarousels();
   })
   .catch(() => {
     grid.innerHTML = PRODUCTS.slice(0, 9).map(renderProductCard).join('');
+    initCardCarousels();
   });
+
+// Auto-rotate multi-image product cards
+const _carouselTimers = {};
+function initCardCarousels() {
+  document.querySelectorAll('.pcard[data-images]').forEach(card => {
+    const imgs = JSON.parse(card.dataset.images);
+    if (imgs.length <= 1) return;
+    const pid = card.id.replace('pcard-', '');
+    let idx = 0;
+    _carouselTimers[pid] = setInterval(() => {
+      idx = (idx + 1) % imgs.length;
+      pcardSetImg(pid, idx);
+    }, 2500);
+    card.addEventListener('mouseleave', () => {
+      idx = 0; pcardSetImg(pid, 0);
+    });
+  });
+}
+
+// Notify modal
+let _notifyPid = '', _notifySize = '';
+function openNotifyModal(pid, pname, size) {
+  _notifyPid = pid; _notifySize = size;
+  const desc = size
+    ? `We'll email you when <strong>${pname}</strong> in size <strong>${size}</strong> is back in stock.`
+    : `We'll email you when <strong>${pname}</strong> is back in stock.`;
+  document.getElementById('notify-modal-desc').innerHTML = desc;
+  document.getElementById('notify-email').value = '';
+  document.getElementById('notify-feedback').style.display = 'none';
+  document.getElementById('notify-modal').classList.add('open');
+}
+function closeNotifyModal() {
+  document.getElementById('notify-modal').classList.remove('open');
+}
+async function submitNotify() {
+  const email = document.getElementById('notify-email').value.trim();
+  if (!email) return;
+  const fb = document.getElementById('notify-feedback');
+  try {
+    const res = await fetch('/notify-me', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, product_id: _notifyPid, size: _notifySize })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      fb.textContent = '✓ You\'re on the list! We\'ll email you when it\'s back.';
+      fb.style.color = '#007A3D'; fb.style.display = 'block';
+      setTimeout(closeNotifyModal, 2500);
+    } else {
+      fb.textContent = data.error || 'Something went wrong.';
+      fb.style.color = '#E53935'; fb.style.display = 'block';
+    }
+  } catch {
+    fb.textContent = 'Could not connect. Please try again.';
+    fb.style.color = '#E53935'; fb.style.display = 'block';
+  }
+}
+document.getElementById('notify-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('notify-modal')) closeNotifyModal();
+});
 </script>
 </body>
 </html>

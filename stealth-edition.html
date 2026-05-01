@@ -1,26 +1,37 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title id="page-title">I Never Left — Linkist × UAE</title>
+<title>Stealth Edition — I Never Left · Linkist UAE</title>
 <link rel="stylesheet" href="style.css">
 <style>
 .product-wrap {
   max-width:1100px; margin:0 auto; padding:100px 64px 80px;
   display:grid; grid-template-columns:1fr 1fr; gap:72px; align-items:start;
 }
+.product-img-col { position:sticky; top:88px; display:flex; flex-direction:column; gap:12px; }
 .product-img-main {
-  position:sticky; top:88px;
   background:#0d0d0d; border-radius:12px; overflow:hidden; aspect-ratio:1/1;
 }
-.product-img-main img { width:100%; height:100%; object-fit:cover; display:block; }
+.product-img-main img { width:100%; height:100%; object-fit:cover; display:block; transition:opacity 0.2s; }
+.thumb-strip { display:none; gap:8px; flex-wrap:wrap; }
+.thumb {
+  width:64px; height:64px; border-radius:8px; object-fit:cover; cursor:pointer;
+  border:2px solid transparent; transition:border-color 0.2s; background:#0d0d0d;
+}
+.thumb.active { border-color:#C8102E; }
+.thumb:hover { border-color:rgba(255,255,255,0.35); }
 .product-info { display:flex; flex-direction:column; gap:24px; }
 .product-tag { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.12em; text-transform:uppercase; }
 .product-name { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,64px); line-height:1; }
 .product-tagline { font-size:15px; font-weight:300; color:rgba(255,255,255,0.55); line-height:1.6; }
-.product-price { font-family:'Bebas Neue',sans-serif; font-size:42px; line-height:1; }
-.product-price span { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#555; }
+.product-price { line-height:1; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.price-was-lg { font-family:'DM Sans',sans-serif; font-size:18px; color:#555; text-decoration:line-through; }
+.price-sale-lg { font-family:'Bebas Neue',sans-serif; font-size:44px; color:#E53935; }
+.price-sale-lg .aed { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#888; }
+.price-only-lg { font-family:'Bebas Neue',sans-serif; font-size:44px; }
+.price-only-lg .aed { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#555; }
 .product-divider { border:none; border-top:1px solid #1a1a1a; }
 .label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#555; text-transform:uppercase; margin-bottom:10px; display:block; }
 .product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
@@ -30,8 +41,12 @@
 .details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
 .action-row { display:flex; gap:10px; align-items:center; }
 .size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:6px; }
-.other-products { padding:0 64px 80px; max-width:1100px; margin:0 auto; }
-.other-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
+.notify-size-link {
+  display:none; font-family:'Space Mono',monospace; font-size:10px; color:#888;
+  text-decoration:none; margin-top:8px; letter-spacing:0.06em; cursor:pointer;
+  transition:color 0.2s;
+}
+.notify-size-link:hover { color:#fff; }
 .view-cart-btn {
   display:none; width:100%; margin-top:10px;
   background:transparent; border:1px solid var(--white); color:var(--white);
@@ -40,20 +55,28 @@
   text-align:center; text-decoration:none; transition:background 0.2s; box-sizing:border-box;
 }
 .view-cart-btn:hover { background:rgba(255,255,255,0.08); }
-.other-grid a, .other-grid a * { color: var(--white); text-decoration: none; }
-.pcard-tag { color: #666; }
+.other-products { padding:0 64px 80px; max-width:1100px; margin:0 auto; }
+.other-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
+.other-grid .pcard-tag { color:#666; }
+.notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
+.notify-modal-overlay.open { display:flex; }
+.notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; position:relative; }
+.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
+.notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+.notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; }
 @media(max-width:768px) {
   .product-wrap{grid-template-columns:1fr;gap:32px;padding:80px 20px 48px}
-  .product-img-main{position:relative;top:0}
+  .product-img-col{position:relative;top:0}
   .other-products{padding:0 20px 60px}
   .other-grid{
     display:flex; overflow-x:auto; gap:12px;
     scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
     padding-bottom:8px; grid-template-columns:none;
   }
-  .other-grid a { flex:0 0 160px; scroll-snap-align:start; }
+  .other-grid .pcard { flex:0 0 160px; scroll-snap-align:start; }
 }
-@media(max-width:480px) { .other-grid a { flex:0 0 150px; } }
+@media(max-width:480px) { .other-grid .pcard { flex:0 0 150px; } }
 </style>
 </head>
 <body>
@@ -61,8 +84,11 @@
 <div id="nav-root"></div>
 
 <div class="product-wrap">
-  <div class="product-img-main">
-    <img id="prod-img" src="" alt=""/>
+  <div class="product-img-col">
+    <div class="product-img-main">
+      <img id="prod-img" src="" alt=""/>
+    </div>
+    <div class="thumb-strip" id="thumb-strip"></div>
   </div>
 
   <div class="product-info">
@@ -80,12 +106,13 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
+      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">ðŸ”” Notify me when a size is back in stock</a>
     </div>
 
     <div>
       <span class="label">Quantity</span>
       <div class="qty-wrap">
-        <button class="qty-btn" id="qty-minus">−</button>
+        <button class="qty-btn" id="qty-minus">âˆ’</button>
         <span class="qty-num" id="qty-num">1</span>
         <button class="qty-btn" id="qty-plus">+</button>
       </div>
@@ -94,7 +121,7 @@
     <div class="action-row">
       <button class="btn-primary full" id="atc-btn">Add to Cart</button>
     </div>
-    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART →</a>
+    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART â†’</a>
 
     <hr class="product-divider">
 
@@ -120,49 +147,158 @@
 
 <div id="footer-root"></div>
 
+<!-- NOTIFY MODAL -->
+<div class="notify-modal-overlay" id="notify-modal">
+  <div class="notify-modal">
+    <button class="notify-modal-close" onclick="closeNotifyModal()">Ã—</button>
+    <h3>ðŸ”” Notify Me</h3>
+    <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
+    <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
+    <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
+    <div id="notify-feedback" style="font-size:12px;margin-top:10px;display:none;"></div>
+  </div>
+</div>
+
 <script src="cart.js"></script>
 <script>
 const PRODUCT_ID = 'stealth';
+let _product = PRODUCTS.find(p => p.id === PRODUCT_ID);
+let _productName = _product ? _product.name : 'Circle Edition';
+let selectedSize = null;
+let qty = 1;
 
 document.getElementById('nav-root').innerHTML = renderNav();
 document.getElementById('footer-root').innerHTML = renderFooter();
 
-const product = PRODUCTS.find(p => p.id === PRODUCT_ID);
-document.title = product.name + ' — I Never Left · Linkist';
+// Fetch fresh product data from API, fall back to local PRODUCTS
+fetch('/products')
+  .then(r => r.json())
+  .then(products => {
+    const fresh = products.find(p => p.id === PRODUCT_ID);
+    if (fresh) _product = fresh;
+    _productName = _product.name;
+    initProduct();
+  })
+  .catch(() => initProduct());
 
-// Populate
-document.getElementById('prod-img').src = product.image;
-document.getElementById('prod-img').alt = product.name;
-document.getElementById('prod-tag').textContent = product.tag;
-document.getElementById('prod-name').textContent = product.name;
-document.getElementById('prod-tagline').textContent = product.tagline;
-document.getElementById('prod-price').innerHTML = product.price + ' <span>AED</span>';
-document.getElementById('prod-desc').innerHTML = product.description;
-document.getElementById('prod-details').innerHTML = product.details.map(d => '<li>' + d + '</li>').join('');
+function initProduct() {
+  const p = _product;
+  document.title = p.name + ' â€” I Never Left Â· Linkist';
 
-// Sizes
-let selectedSize = null;
-const sizeGrid = document.getElementById('size-grid');
-sizeGrid.innerHTML = SIZES.map(s =>
-  '<button class="sz" data-size="' + s + '">' + s + '</button>'
-).join('');
-sizeGrid.querySelectorAll('.sz').forEach(btn => {
-  btn.addEventListener('click', () => {
-    sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedSize = btn.dataset.size;
-    document.getElementById('size-error').style.display = 'none';
+  // Main image
+  const mainImg = document.getElementById('prod-img');
+  const baseImg = p.image_url || p.image || '';
+  mainImg.src = baseImg;
+  mainImg.alt = p.name;
+
+  document.getElementById('prod-tag').textContent = p.tag || '';
+  document.getElementById('prod-name').textContent = p.name;
+  document.getElementById('prod-tagline').textContent = p.tagline || '';
+
+  // Sale price display
+  const origPrice = p.originalPrice || p.original_price;
+  const priceEl = document.getElementById('prod-price');
+  if (origPrice) {
+    priceEl.innerHTML = `<span class="price-was-lg">${origPrice} AED</span><span class="price-sale-lg">${p.price} <span class="aed">AED</span></span>`;
+  } else {
+    priceEl.innerHTML = `<span class="price-only-lg">${p.price} <span class="aed">AED</span></span>`;
+  }
+
+  document.getElementById('prod-desc').innerHTML = p.description || '';
+  document.getElementById('prod-details').innerHTML = (p.details || []).map(d => '<li>' + d + '</li>').join('');
+
+  // Thumbnail strip
+  const extraImgs = Array.isArray(p.images) ? p.images : [];
+  const allImgs = [baseImg, ...extraImgs].filter(Boolean);
+  if (allImgs.length > 1) {
+    const strip = document.getElementById('thumb-strip');
+    strip.innerHTML = allImgs.map((src, i) =>
+      `<img src="${src}" class="thumb${i===0?' active':''}" data-idx="${i}" alt="View ${i+1}" loading="lazy"/>`
+    ).join('');
+    strip.style.display = 'flex';
+    strip.querySelectorAll('.thumb').forEach(t => {
+      t.addEventListener('click', () => {
+        mainImg.style.opacity = '0.6';
+        setTimeout(() => { mainImg.src = t.src; mainImg.style.opacity = '1'; }, 100);
+        strip.querySelectorAll('.thumb').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+      });
+    });
+  }
+
+  // Build size grid with stock awareness
+  initSizesFromAPI();
+
+  // Other products
+  const others = PRODUCTS.filter(op => op.id !== PRODUCT_ID);
+  document.getElementById('other-grid').innerHTML = others.map(op => {
+    const orig = op.originalPrice || op.original_price;
+    const priceHtml = orig
+      ? `<span style="font-size:12px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${orig} AED</span> <span style="color:#E53935;">${op.price} <span style="font-size:11px;color:#888;font-family:'DM Sans',sans-serif;">AED</span></span>`
+      : `${op.price} <span style="font-size:13px;color:#555;font-family:'DM Sans',sans-serif;">AED</span>`;
+    return `
+    <a href="${op.page}" class="pcard" style="text-decoration:none;color:inherit;">
+      <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
+        <img src="${op.image}" alt="${op.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
+        ${op.badge ? '<div class="pcard-badge">' + op.badge + '</div>' : ''}
+      </div>
+      <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:#111;">
+        <div class="pcard-name">${op.name}</div>
+        <div class="pcard-tag" style="color:#666;">${op.tag || ''}</div>
+        <div class="pcard-price" style="font-family:'Bebas Neue',sans-serif;font-size:22px;">${priceHtml}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+async function initSizesFromAPI() {
+  const sizeGrid = document.getElementById('size-grid');
+  let stockData = null;
+
+  try {
+    const res = await fetch('/products');
+    const products = await res.json();
+    const found = products.find(p => p.id === PRODUCT_ID);
+    if (found?.stock) stockData = found.stock;
+  } catch(e) { /* no stock data â€” all sizes show as available */ }
+
+  sizeGrid.innerHTML = SIZES.map(s => {
+    const qty = stockData ? (stockData[s] ?? 0) : null;
+    const isSoldOut = stockData !== null && qty === 0;
+    const isLow = !isSoldOut && qty !== null && qty > 0 && qty <= 4;
+    return `<button class="sz${isSoldOut ? ' sold-out' : ''}" data-size="${s}"${isSoldOut ? ' disabled' : ''}${isLow ? ` data-stock-warn="Only ${qty} left"` : ''}>${s}</button>`;
+  }).join('');
+
+  // Add stock-warn tooltip styles
+  if (stockData && SIZES.some(s => { const q = stockData[s] ?? 0; return q > 0 && q <= 4; })) {
+    const style = document.createElement('style');
+    style.textContent = `.sz[data-stock-warn]{position:relative;}.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;}.sz[data-stock-warn]:hover::after{opacity:1;}`;
+    document.head.appendChild(style);
+  }
+
+  // Show notify link if any size is sold out
+  if (stockData && SIZES.some(s => (stockData[s] ?? 0) === 0)) {
+    document.getElementById('notify-size-link').style.display = 'block';
+  }
+
+  // Bind click on available sizes
+  sizeGrid.querySelectorAll('.sz:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedSize = btn.dataset.size;
+      document.getElementById('size-error').style.display = 'none';
+    });
   });
-});
+}
 
-// Qty
-let qty = 1;
+// Qty controls
 document.getElementById('qty-minus').addEventListener('click', () => {
   qty = Math.max(1, qty - 1);
   document.getElementById('qty-num').textContent = qty;
 });
 document.getElementById('qty-plus').addEventListener('click', () => {
-  qty = Math.min(10, qty + 1);
+  qty = Math.min(5, qty + 1);
   document.getElementById('qty-num').textContent = qty;
 });
 
@@ -170,42 +306,52 @@ document.getElementById('qty-plus').addEventListener('click', () => {
 document.getElementById('atc-btn').addEventListener('click', () => {
   if (!selectedSize) {
     document.getElementById('size-error').style.display = 'block';
-    sizeGrid.style.outline = '1px solid #E53935';
-    sizeGrid.style.borderRadius = '8px';
-    sizeGrid.style.padding = '8px';
-    setTimeout(() => { sizeGrid.style.outline=''; sizeGrid.style.padding=''; }, 1500);
+    const sg = document.getElementById('size-grid');
+    sg.style.outline = '1px solid #E53935';
+    sg.style.borderRadius = '8px';
+    sg.style.padding = '8px';
+    setTimeout(() => { sg.style.outline=''; sg.style.padding=''; }, 1500);
     return;
   }
-  Cart.add(product, selectedSize, qty);
+  Cart.add(_product, selectedSize, qty);
   const btn = document.getElementById('atc-btn');
-  btn.textContent = '✓ Added to Cart';
+  btn.textContent = 'âœ“ Added to Cart';
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
   document.getElementById('view-cart-btn').style.display = 'block';
-  showToast(product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
+  showToast(_product.name + ' (' + selectedSize + ' Ã— ' + qty + ') added!');
 });
 
-// Load real stock from API
-if (typeof loadProductStock === 'function') {
-  loadProductStock(PRODUCT_ID, sizeGrid);
+// Notify modal
+let _notifyPid = '', _notifySize = '';
+function openNotifyModal(pid, pname, size) {
+  _notifyPid = pid; _notifySize = size;
+  document.getElementById('notify-modal-desc').innerHTML = size
+    ? `We'll email you when <strong>${pname}</strong> in size <strong>${size}</strong> is back.`
+    : `We'll email you when <strong>${pname}</strong> is back in stock.`;
+  document.getElementById('notify-email').value = '';
+  document.getElementById('notify-feedback').style.display = 'none';
+  document.getElementById('notify-modal').classList.add('open');
 }
-
-// Other products
-const others = PRODUCTS.filter(p => p.id !== PRODUCT_ID);
-document.getElementById('other-grid').innerHTML = others.map(p => `
-  <a href="${p.page}" class="pcard">
-    <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
-      <img src="${p.image}" alt="${p.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
-      ${p.badge ? '<div class="pcard-badge">' + p.badge + '</div>' : ''}
-    </div>
-    <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:#111;">
-      <div class="pcard-name">${p.name}</div>
-      <div class="pcard-tag">${p.tag}</div>
-      <div class="pcard-price">${p.price} <span>AED</span></div>
-    </div>
-  </a>
-`).join('');
+function closeNotifyModal() { document.getElementById('notify-modal').classList.remove('open'); }
+async function submitNotify() {
+  const email = document.getElementById('notify-email').value.trim();
+  if (!email) return;
+  const fb = document.getElementById('notify-feedback');
+  try {
+    const res = await fetch('/notify-me', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, product_id: _notifyPid, size: _notifySize }) });
+    const data = await res.json();
+    if (res.ok) { fb.textContent = "âœ“ You're on the list!"; fb.style.color='#007A3D'; fb.style.display='block'; setTimeout(closeNotifyModal, 2000); }
+    else { fb.textContent = data.error || 'Error'; fb.style.color='#E53935'; fb.style.display='block'; }
+  } catch { fb.textContent = 'Could not connect.'; fb.style.color='#E53935'; fb.style.display='block'; }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('notify-modal')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('notify-modal')) closeNotifyModal();
+  });
+});
 </script>
 </body>
 </html>
+

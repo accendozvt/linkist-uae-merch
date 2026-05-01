@@ -7,6 +7,8 @@ const PDFDocument = require('pdfkit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +21,27 @@ const supabase = process.env.SUPABASE_URL
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
   : null;
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Image upload storage
+const imgDir = path.join(__dirname, 'images');
+if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, imgDir),
+    filename: (req, file, cb) => {
+      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, safe);
+    }
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (/\.(jpe?g|png|webp|gif)$/i.test(file.originalname)) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  }
+});
+
+// Product name map for notifications
+const PRODUCT_NAMES = { circle: 'Circle Edition', smile: 'Smile Edition', stripe: 'Stripe Edition', stealth: 'Stealth Edition' };
 
 // CRITICAL: webhook raw body MUST come before express.json()
 app.use('/webhook', express.raw({ type: 'application/json' }));
@@ -143,7 +166,7 @@ app.post('/create-checkout', async (req, res) => {
     }
 
     // Load prices from DB (falls back to hardcoded for the 4 original products)
-    const FALLBACK_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
+    const FALLBACK_PRICES = { circle: 97, smile: 97, stripe: 97, stealth: 169 };
     let dbPrices = {};
     if (supabase) {
       const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
@@ -218,7 +241,7 @@ app.post('/pre-checkout', async (req, res) => {
     }
 
     // Load prices
-    const FALLBACK_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 169 };
+    const FALLBACK_PRICES = { circle: 97, smile: 97, stripe: 97, stealth: 169 };
     let dbPrices = {};
     if (supabase) {
       const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
@@ -480,7 +503,7 @@ function buyerEmailHtml(order, items) {
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:28px 40px;text-align:center;border-top:1px solid #1e1e1e;">
     <div style="font-size:12px;color:#444;line-height:1.8;">
       <a href="https://linkist.ai" style="color:#666;text-decoration:none;">linkist.ai</a>
-      &nbsp;·&nbsp; #IstandwithUAE &nbsp;·&nbsp; #BornInTheUAE
+      &nbsp;·&nbsp; #WeStandWithUAE &nbsp;·&nbsp; #BornInTheUAE
     </div>
     <div style="font-size:10px;color:#333;margin-top:8px;">100% of proceeds go to UAE community relief</div>
   </td></tr></table>
@@ -522,7 +545,7 @@ async function sendWelcomeEmail(customer) {
     </div>
   </td></tr></table>
   <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #1e1e1e;">
-    <div style="font-size:11px;color:#444;line-height:1.8;"><a href="https://linkist.ai" style="color:#666;text-decoration:none;">linkist.ai</a> &nbsp;·&nbsp; #IstandwithUAE &nbsp;·&nbsp; #BornInTheUAE</div>
+    <div style="font-size:11px;color:#444;line-height:1.8;"><a href="https://linkist.ai" style="color:#666;text-decoration:none;">linkist.ai</a> &nbsp;·&nbsp; #WeStandWithUAE &nbsp;·&nbsp; #BornInTheUAE</div>
   </td></tr></table>
   <table width="100%" cellpadding="0" cellspacing="0"><tr>
     <td style="background:#007A3D;height:4px;"></td><td style="background:#111111;height:4px;"></td>
@@ -1150,28 +1173,147 @@ app.patch('/admin/stock', requireAdmin, async (req, res) => {
     if (!productId || !size || quantity === undefined) return res.status(400).json({ error: 'productId, size and quantity are required' });
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
 
+    const newQty = Math.max(0, parseInt(quantity));
     const { data, error } = await supabase.from('stock').upsert({
       product_id: productId,
       size,
-      quantity: Math.max(0, parseInt(quantity)),
+      quantity: newQty,
       updated_at: new Date().toISOString()
     }, { onConflict: 'product_id,size' }).select().single();
 
     if (error) throw error;
+    // Fire back-in-stock notifications asynchronously
+    fireStockNotifications(productId, size, newQty).catch(() => {});
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// ── Stock back-in-stock notifications ───────────────────────────
+
+app.post('/notify-me', async (req, res) => {
+  try {
+    const { email, product_id, size } = req.body;
+    if (!email || !product_id || !size) return res.status(400).json({ error: 'email, product_id and size required' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { error } = await supabase.from('stock_notifications').upsert(
+      { email: email.toLowerCase().trim(), product_id, size },
+      { onConflict: 'email,product_id,size', ignoreDuplicates: true }
+    );
+    if (error && !error.message.includes('duplicate')) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('notify-me error:', err.message);
+    res.status(500).json({ error: 'Could not save notification request' });
+  }
+});
+
+async function fireStockNotifications(productId, size, newQty) {
+  if (!supabase || !resend || newQty <= 0) return;
+  try {
+    const { data: notifs } = await supabase.from('stock_notifications')
+      .select('id, email').eq('product_id', productId).eq('size', size).is('notified_at', null);
+    if (!notifs?.length) return;
+    const productName = PRODUCT_NAMES[productId] || productId;
+    for (const n of notifs) {
+      await sendStockNotificationEmail(n.email, productName, productId, size).catch(e =>
+        console.error('Stock notif email failed:', e.message)
+      );
+    }
+    await supabase.from('stock_notifications')
+      .update({ notified_at: new Date().toISOString() })
+      .eq('product_id', productId).eq('size', size).is('notified_at', null);
+    console.log(`[stock-notify] Sent ${notifs.length} notification(s) for ${productId}/${size}`);
+  } catch (e) {
+    console.error('fireStockNotifications error:', e.message);
+  }
+}
+
+async function sendStockNotificationEmail(email, productName, productId, size) {
+  const productPage = `https://linkist.ai/${productId}-edition.html`;
+  await sendMail({
+    from: 'Linkist UAE <hello@linkist.ai>',
+    to: email,
+    subject: `${productName} (Size ${size}) is back in stock — I Never Left`,
+    html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td><td style="background:#ffffff;height:5px;"></td>
+    <td style="background:#111111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <div style="font-family:Arial,sans-serif;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:5px;">LINKIST</div>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">I Never Left · UAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
+    <div style="width:64px;height:64px;border-radius:50%;background:#007A3D;display:inline-block;line-height:64px;text-align:center;">
+      <span style="color:#fff;font-size:32px;line-height:64px;">✓</span>
+    </div>
+    <h1 style="color:#ffffff;font-size:22px;margin:20px 0 8px;font-family:Arial,sans-serif;">It's Back in Stock!</h1>
+    <p style="color:#888;font-size:14px;margin:0 0 24px;line-height:1.7;">
+      <strong style="color:#fff;">${escHtml(productName)}</strong> in size <strong style="color:#fff;">${escHtml(size)}</strong><br>
+      is now available. Grab it before it's gone.
+    </p>
+    <a href="${productPage}" style="display:inline-block;background:#E53935;color:#ffffff;font-size:13px;font-weight:bold;text-decoration:none;padding:14px 36px;border-radius:8px;letter-spacing:1px;">SHOP NOW →</a>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #1e1e1e;">
+    <div style="font-size:11px;color:#444;">linkist.ai · #WeStandWithUAE · #BornInTheUAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#007A3D;height:4px;"></td><td style="background:#111111;height:4px;"></td>
+    <td style="background:#ffffff;height:4px;"></td><td style="background:#C8102E;height:4px;"></td>
+  </tr></table>
+</div></body></html>`
+  });
+}
+
 // ── Admin: images directory ──────────────────────────────────────
 
 app.get('/admin/images', requireAdmin, (req, res) => {
-  const fs = require('fs');
-  const imgDir = path.join(__dirname, 'images');
   if (!fs.existsSync(imgDir)) return res.json([]);
   const files = fs.readdirSync(imgDir).filter(f => /\.(png|jpe?g|gif|webp|svg)$/i.test(f));
   res.json(files.map(f => ({ name: f, url: `/images/${f}` })));
+});
+
+app.post('/admin/images/upload', requireAdmin, upload.array('images', 10), (req, res) => {
+  if (!req.files?.length) return res.status(400).json({ error: 'No files uploaded' });
+  const uploaded = req.files.map(f => ({ name: f.filename, url: `/images/${f.filename}` }));
+  res.json({ ok: true, files: uploaded });
+}, (err, req, res, next) => {
+  res.status(400).json({ error: err.message });
+});
+
+app.get('/admin/customers', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data: customers, error } = await supabase.from('customers')
+      .select('id, name, email, phone, created_at').order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(customers || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data: customers, error } = await supabase.from('customers')
+      .select('name, email, phone').order('created_at', { ascending: false });
+    if (error) throw error;
+    const rows = ['Name,Email,Phone'];
+    (customers || []).forEach(c => {
+      const row = [c.name, c.email, c.phone || ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      rows.push(row);
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=customers-${new Date().toISOString().slice(0,10)}.csv`);
+    res.send(rows.join('\r\n'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Start ────────────────────────────────────────────────────────

@@ -171,7 +171,7 @@ function renderFooter() {
   <footer>
     <a href="index.html" class="footer-logo">${LOGO_IMG}</a>
     <div class="footer-tags">
-      <span class="footer-tag">#IstandwithUAE</span>
+      <span class="footer-tag">#WeStandWithUAE</span>
       <span class="footer-tag">#BornInTheUAE</span>
     </div>
     <div class="footer-right">linkist.ai · April 2026<br>Limited Edition</div>
@@ -219,19 +219,21 @@ const PRODUCTS = [
     name: 'Circle Edition',
     tagline: 'The original statement piece',
     tag: 'DESIGN 01 · STATEMENT',
-    price: 149,
+    price: 97,
+    originalPrice: 149,
     badge: 'BESTSELLER',
     page: 'circle-edition.html',
     image: '/images/Linkist%2001.png',
     description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
-    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
+    details: ['Dri-Fit performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
   },
   {
     id: 'smile',
     name: 'Smile Edition',
     tagline: 'Quiet pride, loud message',
     tag: 'DESIGN 02 · SUBTLE',
-    price: 149,
+    price: 97,
+    originalPrice: 149,
     badge: 'NEW',
     page: 'smile-edition.html',
     image: '/images/Linkist%2002.png',
@@ -243,7 +245,8 @@ const PRODUCTS = [
     name: 'Stripe Edition',
     tagline: 'Clean, wearable, timeless',
     tag: 'DESIGN 03 · CLASSIC',
-    price: 149,
+    price: 97,
+    originalPrice: 149,
     badge: null,
     page: 'stripe-edition.html',
     image: '/images/Linkist%2003.png',
@@ -260,7 +263,7 @@ const PRODUCTS = [
     page: 'stealth-edition.html',
     image: '/images/Linkist%2004.png',
     description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
-    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop']
+    details: ['Premium cotton fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop']
   }
 ];
 
