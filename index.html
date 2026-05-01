@@ -163,7 +163,7 @@
   font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em;
 }
 .pcard-info { padding:14px 16px 10px; display:flex; flex-direction:column; gap:6px; }
-.pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; color:var(--white); }
+.pcard-name { font-family:'Inter',sans-serif; font-size:18px; font-weight:700; letter-spacing:-0.01em; color:var(--white); line-height:1.2; }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
 .pcard-price { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; line-height:1.4; color:var(--white); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
 .pcard-price-sale { font-size:16px; font-weight:700; color:var(--white) !important; }
@@ -179,7 +179,17 @@
 /* Quick-add panel */
 .pcard-quickadd { padding:0 12px 14px; }
 .pcard-qa-sizes { display:flex; gap:4px; flex-wrap:wrap; }
-.pcard-qa-sizes .sz { width:32px; height:32px; font-size:9px; }
+.pcard-qa-sizes .sz { width:32px; height:32px; font-size:8px; position:relative; }
+.pcard-qa-sizes .sz[data-stock-warn]::before {
+  content:''; position:absolute; top:-2px; right:-2px;
+  width:7px; height:7px; border-radius:50%;
+  background:#E53935; border:1.5px solid #111;
+}
+.pcard-qa-sizes .sz[data-stock-warn]:hover::after {
+  content:attr(data-stock-warn); position:absolute; bottom:calc(100% + 4px); left:50%;
+  transform:translateX(-50%); background:#C8102E; color:#fff; font-size:9px;
+  padding:2px 6px; border-radius:3px; white-space:nowrap; z-index:5;
+}
 .pcard-qa-bottom { display:flex; gap:6px; margin-top:8px; align-items:center; }
 .pcard-qa-bottom .qty-wrap { flex-shrink:0; border-radius:6px; }
 .pcard-qa-bottom .qty-btn { width:30px; height:32px; font-size:14px; }
@@ -321,23 +331,29 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 function renderProductCard(p) {
   const image = p.image_url || p.image || '';
   const page = p.page || `product.html?id=${p.id}`;
-  const stockVals = p.stock ? Object.values(p.stock) : [];
-  const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
-  const soldOut = totalStock !== null && totalStock === 0;
-  const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
   const stock = p.stock || {};
+  // Authoritative per-size qty: missing entry == 0 (sold out) when any stock data exists,
+  // otherwise (totally empty stock object) treat as unknown → fall back to "available".
+  const hasStockData = Object.keys(stock).length > 0;
+  const sizeQty = s => hasStockData ? (Number.isFinite(+stock[s]) ? +stock[s] : 0) : 999;
+  const stockVals = SIZES.map(sizeQty);
+  const totalStock = hasStockData ? stockVals.reduce((a, b) => a + b, 0) : null;
+  const soldOut = hasStockData && totalStock === 0;
+  const lowStock = !soldOut && totalStock !== null && totalStock > 0 && totalStock <= 12;
   const extraImgs = Array.isArray(p.images) ? p.images : [];
   const allImgs = [image, ...extraImgs].filter(Boolean);
   const origPrice = p.originalPrice || p.original_price;
 
   const sizeBtns = SIZES.map(s => {
-    const qty = stock[s] !== undefined ? stock[s] : 999;
-    return qty === 0
-      ? `<button class="sz sold-out" disabled title="Sold out">${s}</button>`
-      : `<button class="sz" data-size="${s}" onclick="qaSize('${p.id}',this)">${s}</button>`;
+    const qty = sizeQty(s);
+    if (qty === 0) {
+      return `<button class="sz sold-out" disabled title="Sold out">${s}</button>`;
+    }
+    const lowSize = qty > 0 && qty <= 4 ? ` data-stock-warn="Only ${qty} left"` : '';
+    return `<button class="sz" data-size="${s}"${lowSize} onclick="qaSize('${p.id}',this)">${s}</button>`;
   }).join('');
 
-  const hasSoldOutSizes = SIZES.some(s => (stock[s] !== undefined ? stock[s] : 999) === 0);
+  const hasSoldOutSizes = SIZES.some(s => sizeQty(s) === 0);
 
   function fmtP(v) { return 'AED ' + parseFloat(v).toFixed(2); }
   const priceHtml = origPrice

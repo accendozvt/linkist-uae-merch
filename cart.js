@@ -259,6 +259,7 @@ const PRODUCTS = [
     tagline: 'For those who know',
     tag: 'DESIGN 04 · PREMIUM',
     price: 169,
+    originalPrice: 199,
     badge: 'PREMIUM',
     page: 'stealth-edition.html',
     image: '/images/Linkist%2004.png',

@@ -35,7 +35,7 @@
   font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em;
 }
 .pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
-.pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
+.pcard-name { font-family:'Inter',sans-serif; font-size:18px; font-weight:700; letter-spacing:-0.01em; line-height:1.2; }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
 .pcard-price { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; line-height:1.4; color:var(--white); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
 .price-was { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#555; text-decoration:line-through; }
@@ -103,12 +103,18 @@ document.getElementById('nav-root').innerHTML = renderNav('collection');
 document.getElementById('footer-root').innerHTML = renderFooter();
 
 function renderProductCard(p) {
+  const SIZES = ['XS','S','M','L','XL','XXL'];
   const image = p.image_url || p.image || '';
   const page = p.page || `product.html?id=${p.id}`;
-  const stockVals = p.stock ? Object.values(p.stock) : [];
-  const totalStock = stockVals.length ? stockVals.reduce((a, b) => a + b, 0) : null;
-  const soldOut = totalStock !== null && totalStock === 0;
-  const lowStock = !soldOut && totalStock !== null && totalStock <= 10;
+  const stock = p.stock || {};
+  // Authoritative per-size qty: missing entry == 0 (sold out) when any stock data exists,
+  // otherwise (totally empty stock object) treat as unknown → fall back to "available".
+  const hasStockData = Object.keys(stock).length > 0;
+  const sizeQty = s => hasStockData ? (Number.isFinite(+stock[s]) ? +stock[s] : 0) : 999;
+  const stockVals = SIZES.map(sizeQty);
+  const totalStock = hasStockData ? stockVals.reduce((a, b) => a + b, 0) : null;
+  const soldOut = hasStockData && totalStock === 0;
+  const lowStock = !soldOut && totalStock !== null && totalStock > 0 && totalStock <= 12;
   const extraImgs = Array.isArray(p.images) ? p.images : [];
   const allImgs = [image, ...extraImgs].filter(Boolean);
   const origPrice = p.originalPrice || p.original_price;
