@@ -258,6 +258,7 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     <button class="tab-btn" onclick="switchTab('products', this)">Products</button>
     <button class="tab-btn" onclick="switchTab('stock', this)">Stock</button>
     <button class="tab-btn" onclick="switchTab('customers', this)">Customers</button>
+    <button class="tab-btn" onclick="switchTab('notify', this)">Notify Me <span id="notify-badge" style="background:#E53935;color:#fff;font-size:9px;padding:2px 6px;border-radius:8px;margin-left:4px;display:none;"></span></button>
     <button class="tab-btn" onclick="switchTab('uploads', this)">Images</button>
   </div>
 
@@ -268,6 +269,7 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
       <div class="stat-card"><div class="stat-label">Revenue (AED)</div><div class="stat-val" id="stat-revenue">—</div></div>
       <div class="stat-card"><div class="stat-label">Processing</div><div class="stat-val" id="stat-pending">—</div></div>
       <div class="stat-card"><div class="stat-label">Customers</div><div class="stat-val" id="stat-customers">—</div></div>
+      <div class="stat-card"><div class="stat-label">Notify-Me Subscribers</div><div class="stat-val" id="stat-notify">—</div><div style="font-size:10px;color:#888;font-family:'Space Mono',monospace;letter-spacing:1px;margin-top:4px;"><span id="stat-notify-pending">—</span> pending</div></div>
     </div>
     <div class="section-hdr">
       <div class="section-title-sm">Recent Orders</div>
@@ -328,6 +330,23 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     </div>
     <div class="table-wrap">
       <div id="customers-table-body"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- Notify-Me Tab -->
+  <div class="tab-content" id="tab-notify">
+    <div class="section-hdr">
+      <div class="section-title-sm">Back-in-Stock Waitlist</div>
+    </div>
+    <div class="table-wrap" style="padding:24px;margin-bottom:24px;">
+      <div style="font-family:'Space Mono',monospace;font-size:9px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px;">Demand Per Product / Size</div>
+      <div id="notify-summary"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="section-hdr">
+      <div class="section-title-sm">All Subscribers</div>
+    </div>
+    <div class="table-wrap">
+      <div id="notify-subs-body"><div class="loading">Loading...</div></div>
     </div>
   </div>
 
@@ -490,6 +509,7 @@ function switchTab(name, btn) {
   if (name === 'stock') loadStock();
   if (name === 'overview') { loadStats(); loadRecentOrders(); }
   if (name === 'customers') loadCustomers();
+  if (name === 'notify') loadNotifySubscribers();
   if (name === 'uploads') loadUploadedImages();
 }
 
@@ -506,6 +526,15 @@ function updateStats(data) {
   document.getElementById('stat-revenue').textContent = data.total_revenue ? Math.round(data.total_revenue / 100).toLocaleString() : '0';
   document.getElementById('stat-pending').textContent = data.pending_orders ?? '—';
   document.getElementById('stat-customers').textContent = data.total_customers ?? '—';
+  if (document.getElementById('stat-notify')) {
+    document.getElementById('stat-notify').textContent = data.notify_subscribers ?? '—';
+    document.getElementById('stat-notify-pending').textContent = data.notify_pending ?? 0;
+    const badge = document.getElementById('notify-badge');
+    if (badge) {
+      if (data.notify_pending > 0) { badge.textContent = data.notify_pending; badge.style.display = 'inline-block'; }
+      else { badge.style.display = 'none'; }
+    }
+  }
 }
 
 // ── Recent orders ──────────────────────────────────
@@ -916,7 +945,7 @@ async function loadCustomers() {
   try {
     const customers = await api('/admin/customers');
     if (!customers.length) { body.innerHTML = '<div class="loading">No customers yet</div>'; return; }
-    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Coupon Code</th><th>Sent</th><th>Joined</th><th></th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Coupon Code</th><th>Sent</th><th>Joined</th><th>Actions</th></tr></thead><tbody>`;
     customers.forEach(c => {
       const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—';
       const sent = c.coupon_sent_at ? new Date(c.coupon_sent_at).toLocaleDateString('en-GB') : '—';
@@ -926,6 +955,7 @@ async function loadCustomers() {
       const resendBtn = c.coupon_code
         ? `<button onclick="resendCoupon('${escHtml(c.email)}', this)" style="background:transparent;border:1px solid #2a2a2a;color:#aaa;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;">Resend</button>`
         : '';
+      const deleteBtn = `<button onclick="deleteCustomer('${escHtml(c.email)}','${escHtml((c.name || '').replace(/'/g, "\\'"))}', this)" style="background:transparent;border:1px solid rgba(229,57,53,0.4);color:#E53935;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;margin-left:6px;">Delete</button>`;
       html += `<tr>
         <td>${escHtml(c.name || '—')}</td>
         <td style="font-size:12px;color:#888;">${escHtml(c.email || '')}</td>
@@ -934,12 +964,39 @@ async function loadCustomers() {
         <td>${couponCell}</td>
         <td style="font-size:11px;color:#666;">${sent}</td>
         <td style="font-size:12px;color:#555;">${date}</td>
-        <td>${resendBtn}</td>
+        <td style="white-space:nowrap;">${resendBtn}${deleteBtn}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     body.innerHTML = html;
   } catch(e) { body.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
+}
+
+async function deleteCustomer(email, name, btn) {
+  const label = name && name !== '—' ? `${name} (${email})` : email;
+  const msg = `Delete ${label}?\n\nThis will permanently remove:\n• Their account (if registered)\n• All their orders + order items\n• Their coupon code\n• Their stock-notification subscriptions\n\nThis cannot be undone. Type DELETE to confirm.`;
+  const confirm1 = prompt(msg);
+  if (confirm1 !== 'DELETE') {
+    if (confirm1 !== null) alert('Deletion cancelled. You must type DELETE exactly to confirm.');
+    return;
+  }
+  btn.textContent = 'Deleting…'; btn.disabled = true;
+  try {
+    const res = await fetch('/admin/customers/by-email', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Delete failed');
+    const d = data.deleted || {};
+    alert(`Deleted ${email}\n\n• Account: ${d.customer || 0}\n• Orders: ${d.orders || 0}\n• Order items: ${d.order_items || 0}\n• Coupons: ${d.coupons || 0}\n• Notify-me: ${d.notify || 0}`);
+    loadCustomers();
+    loadStats();
+  } catch (e) {
+    btn.textContent = 'Delete'; btn.disabled = false;
+    alert('Delete failed: ' + e.message);
+  }
 }
 
 async function resendCoupon(email, btn) {
@@ -976,6 +1033,85 @@ async function downloadCustomerCSV() {
     a.click();
     URL.revokeObjectURL(url);
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── Notify-Me Subscribers ─────────────────────────
+async function loadNotifySubscribers() {
+  const sumEl = document.getElementById('notify-summary');
+  const subsEl = document.getElementById('notify-subs-body');
+  try {
+    const data = await api('/admin/notify-subscribers');
+    const summary = data.summary || [];
+    const subs = data.subscribers || [];
+
+    // Summary cards / table
+    if (!summary.length) {
+      sumEl.innerHTML = '<div style="color:#555;font-size:13px;font-family:monospace;">No subscribers yet.</div>';
+    } else {
+      let html = '<table><thead><tr><th>Product</th><th>Size</th><th>Total</th><th>Pending</th><th>Notified</th><th>Action</th></tr></thead><tbody>';
+      summary.forEach(s => {
+        html += `<tr>
+          <td style="font-weight:600;">${escHtml(s.product_id)}</td>
+          <td style="font-family:monospace;font-size:12px;color:#aaa;">${s.size ? escHtml(s.size) : '<span style="color:#666;">any</span>'}</td>
+          <td style="font-weight:700;">${s.total}</td>
+          <td style="color:${s.pending > 0 ? '#E53935' : '#555'};font-weight:${s.pending > 0 ? '700' : '400'};">${s.pending}</td>
+          <td style="color:#007A3D;">${s.notified}</td>
+          <td>${s.pending > 0
+            ? `<button onclick="fireNotify('${escHtml(s.product_id)}','${escHtml(s.size)}', this)" style="background:transparent;border:1px solid #2a2a2a;color:#aaa;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;">Send Now</button>`
+            : '—'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      sumEl.innerHTML = html;
+    }
+
+    // Detailed subscriber list
+    if (!subs.length) {
+      subsEl.innerHTML = '<div class="loading">No subscribers yet</div>';
+    } else {
+      let html = '<table><thead><tr><th>Email</th><th>Product</th><th>Size</th><th>Subscribed</th><th>Status</th></tr></thead><tbody>';
+      subs.forEach(s => {
+        const sub = s.created_at ? new Date(s.created_at).toLocaleString('en-GB') : '—';
+        const status = s.notified_at
+          ? `<span style="color:#007A3D;font-size:11px;">✓ Notified ${new Date(s.notified_at).toLocaleDateString('en-GB')}</span>`
+          : `<span style="color:#E53935;font-size:11px;">⏳ Pending</span>`;
+        html += `<tr>
+          <td style="font-size:12px;">${escHtml(s.email)}</td>
+          <td>${escHtml(s.product_id)}</td>
+          <td style="font-family:monospace;font-size:12px;color:#aaa;">${s.size ? escHtml(s.size) : '<span style="color:#666;">any</span>'}</td>
+          <td style="font-size:11px;color:#666;">${sub}</td>
+          <td>${status}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      subsEl.innerHTML = html;
+    }
+  } catch (e) {
+    sumEl.innerHTML = '<div class="loading">Error: ' + e.message + '</div>';
+    subsEl.innerHTML = '';
+  }
+}
+
+async function fireNotify(product_id, size, btn) {
+  const label = `${product_id}/${size || 'any'}`;
+  if (!confirm(`Send back-in-stock email to all pending subscribers for ${label}?\n\n(Will only send if current stock > 0.)`)) return;
+  const original = btn.textContent;
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  try {
+    const res = await fetch('/admin/notify-fire', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
+      body: JSON.stringify({ product_id, size })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    btn.textContent = 'Sent ✓'; btn.style.color = '#007A3D'; btn.style.borderColor = '#007A3D';
+    setTimeout(() => loadNotifySubscribers(), 1200);
+  } catch (e) {
+    btn.textContent = 'Failed'; btn.style.color = '#E53935'; btn.disabled = false;
+    setTimeout(() => { btn.textContent = original; btn.style.color = ''; btn.disabled = false; }, 2500);
+    alert('Failed: ' + e.message);
+  }
 }
 
 // ── Image Upload ────────────────────────────────────

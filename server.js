@@ -1384,17 +1384,22 @@ app.put('/customer/password', requireCustomer, async (req, res) => {
 
 app.get('/admin/stats', requireAdmin, async (req, res) => {
   try {
-    if (!supabase) return res.json({ total_orders: 0, total_revenue: 0, pending_orders: 0, total_customers: 0 });
+    if (!supabase) return res.json({ total_orders: 0, total_revenue: 0, pending_orders: 0, total_customers: 0, notify_subscribers: 0, notify_pending: 0 });
 
-    const { data: orders } = await supabase.from('orders').select('status, total_amount');
-    const { data: customers } = await supabase.from('customers').select('id');
+    const [{ data: orders }, { data: customers }, { data: notifs }] = await Promise.all([
+      supabase.from('orders').select('status, total_amount'),
+      supabase.from('customers').select('id'),
+      supabase.from('stock_notifications').select('id, notified_at'),
+    ]);
 
     const total_orders = orders?.length || 0;
     const total_revenue = (orders || []).reduce((s, o) => s + (o.total_amount || 0), 0);
     const pending_orders = (orders || []).filter(o => o.status === 'processing').length;
     const total_customers = customers?.length || 0;
+    const notify_subscribers = notifs?.length || 0;
+    const notify_pending = (notifs || []).filter(n => !n.notified_at).length;
 
-    res.json({ total_orders, total_revenue, pending_orders, total_customers });
+    res.json({ total_orders, total_revenue, pending_orders, total_customers, notify_subscribers, notify_pending });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1903,6 +1908,128 @@ app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename=customers-${new Date().toISOString().slice(0,10)}.csv`);
     res.send(csv.join('\r\n'));
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manually fire pending back-in-stock emails for a product/size (admin tool).
+// Useful if a transition was missed because oldQty was already > 0.
+app.post('/admin/notify-fire', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { product_id, size } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'product_id required' });
+
+    // Need current stock to ensure we're not telling people about empty stock
+    const { data: stockRow } = await supabase.from('stock')
+      .select('quantity').eq('product_id', product_id).eq('size', size || '').maybeSingle();
+    const currentQty = stockRow?.quantity ?? 0;
+    if (currentQty <= 0 && size) {
+      // Try to read the size that's actually requested via productId/size
+      const { data: row2 } = await supabase.from('stock')
+        .select('quantity').eq('product_id', product_id).eq('size', size).maybeSingle();
+      if ((row2?.quantity ?? 0) <= 0) {
+        return res.status(400).json({ error: `Stock is 0 for ${product_id}/${size}. Set stock > 0 first, then retry.` });
+      }
+    }
+
+    console.log(`[admin/notify-fire] manual trigger ${product_id}/${size || 'any'} (qty ${currentQty})`);
+    await fireStockNotifications(product_id, size || '', Math.max(currentQty, 1));
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[admin/notify-fire] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Notify-me subscribers list (back-in-stock waitlist)
+app.get('/admin/notify-subscribers', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.json({ subscribers: [], summary: {} });
+    const { data: subs } = await supabase.from('stock_notifications')
+      .select('id, email, product_id, size, created_at, notified_at')
+      .order('created_at', { ascending: false });
+
+    // Build summary { 'circle/S': count, 'circle/any': count, ... }
+    const summary = {};
+    (subs || []).forEach(s => {
+      const key = `${s.product_id}/${s.size || 'any'}`;
+      if (!summary[key]) summary[key] = { product_id: s.product_id, size: s.size || '', total: 0, pending: 0, notified: 0 };
+      summary[key].total++;
+      if (s.notified_at) summary[key].notified++;
+      else summary[key].pending++;
+    });
+
+    res.json({
+      subscribers: subs || [],
+      summary: Object.values(summary).sort((a, b) => b.total - a.total),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a customer + all their related data (by email — covers guests + members)
+app.delete('/admin/customers/by-email', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email required' });
+    const cleanEmail = String(email).toLowerCase().trim();
+    const counts = { customer: 0, orders: 0, order_items: 0, coupons: 0, notify: 0 };
+
+    // Find customer rows (registered)
+    const { data: custRows } = await supabase.from('customers').select('id').eq('email', cleanEmail);
+    const customerIds = (custRows || []).map(c => c.id);
+
+    // Find ALL orders for this email (registered or guest)
+    const { data: orderRows } = await supabase.from('orders').select('id').eq('customer_email', cleanEmail);
+    const orderIds = (orderRows || []).map(o => o.id);
+
+    // Delete order_items first (FK on order_id)
+    if (orderIds.length) {
+      const { error: oiErr, count: oiCount } = await supabase.from('order_items')
+        .delete({ count: 'exact' }).in('order_id', orderIds);
+      if (oiErr) throw oiErr;
+      counts.order_items = oiCount || 0;
+    }
+
+    // Delete orders
+    if (orderIds.length) {
+      const { error: oErr, count: oCount } = await supabase.from('orders')
+        .delete({ count: 'exact' }).in('id', orderIds);
+      if (oErr) throw oErr;
+      counts.orders = oCount || 0;
+    }
+
+    // Delete coupons by email
+    {
+      const { error, count } = await supabase.from('coupons')
+        .delete({ count: 'exact' }).eq('email', cleanEmail);
+      if (error) throw error;
+      counts.coupons = count || 0;
+    }
+
+    // Delete stock_notifications by email
+    {
+      const { error, count } = await supabase.from('stock_notifications')
+        .delete({ count: 'exact' }).eq('email', cleanEmail);
+      if (error) throw error;
+      counts.notify = count || 0;
+    }
+
+    // Finally delete the customer rows themselves
+    if (customerIds.length) {
+      const { error, count } = await supabase.from('customers')
+        .delete({ count: 'exact' }).in('id', customerIds);
+      if (error) throw error;
+      counts.customer = count || 0;
+    }
+
+    console.log(`[admin/delete-customer] ${cleanEmail} → deleted`, counts);
+    res.json({ ok: true, email: cleanEmail, deleted: counts });
+  } catch (err) {
+    console.error('[admin/delete-customer] error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
