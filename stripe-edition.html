@@ -29,7 +29,7 @@
   font-family:'Space Mono',monospace; font-size:11px; color:#888;
   letter-spacing:0.14em; text-transform:uppercase;
 }
-.product-name { font-family:'Inter',sans-serif; font-size:clamp(40px,5vw,64px); line-height:1; }
+.product-name { font-family:'Inter',sans-serif; font-size:clamp(26px,3.2vw,46px); line-height:1.05; }
 .product-tagline { font-size:15px; font-weight:300; color:rgba(255,255,255,0.55); line-height:1.6; }
 
 /* Price */
@@ -39,10 +39,9 @@
   text-decoration:line-through; letter-spacing:0.02em;
 }
 .price-main {
-  font-family:'Inter',sans-serif; font-size:48px; color:#E53935; line-height:1;
+  font-family:'Inter',sans-serif; font-size:48px; color:var(--white); line-height:1;
   letter-spacing:0.02em;
 }
-.price-main.no-sale { color:var(--white); }
 .free-shipping {
   display:inline-flex; align-items:center; gap:5px;
   font-family:'Space Mono',monospace; font-size:10px; color:#007A3D;
@@ -177,7 +176,7 @@
 <!-- OTHER PRODUCTS -->
 <div class="other-products">
   <div class="section-hdr">
-    <h2 class="section-title" style="font-family:'Inter',sans-serif;font-size:clamp(28px,4vw,48px);line-height:1;">More From The Collection</h2>
+    <h2 class="section-title" style="font-family:'Inter',sans-serif;font-size:clamp(18px,2.2vw,28px);line-height:1;">More From The Collection</h2>
   </div>
   <div class="other-grid" id="other-grid"></div>
 </div>
@@ -208,21 +207,22 @@ document.getElementById('nav-root').innerHTML = renderNav();
 document.getElementById('footer-root').innerHTML = renderFooter();
 
 // Fetch fresh product data from API, fall back to local PRODUCTS
+// Single fetch — data used for both product info AND stock
 fetch('/products')
   .then(r => r.json())
   .then(products => {
     const fresh = products.find(p => p.id === PRODUCT_ID);
     if (fresh) _product = fresh;
     _productName = _product.name;
-    initProduct();
+    initProduct(_product.stock || null);
   })
-  .catch(() => initProduct());
+  .catch(() => initProduct(null));
 
 function fmtPrice(p) {
   return 'AED ' + parseFloat(p).toFixed(2);
 }
 
-function initProduct() {
+function initProduct(stockData) {
   const p = _product;
   document.title = p.name + ' — I Never Left · Linkist';
 
@@ -269,16 +269,16 @@ function initProduct() {
     });
   }
 
-  // Build size grid
-  initSizesFromAPI();
+  // Build size grid (stockData already from single fetch above)
+  initSizes(stockData);
 
   // Other products
   const others = PRODUCTS.filter(op => op.id !== PRODUCT_ID);
   document.getElementById('other-grid').innerHTML = others.map(op => {
     const orig = op.originalPrice || op.original_price;
     const priceHtml = orig
-      ? `<div style="font-size:11px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${fmtPrice(orig)}</div><div style="color:#E53935;font-family:'Inter',sans-serif;font-size:22px;">${fmtPrice(op.price)}</div>`
-      : `<div style="font-family:'Inter',sans-serif;font-size:22px;">${fmtPrice(op.price)}</div>`;
+      ? `<div style="font-size:11px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${fmtPrice(orig)}</div><div style="color:#F5F5F5;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;">${fmtPrice(op.price)}</div>`
+      : `<div style="color:#F5F5F5;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;">${fmtPrice(op.price)}</div>`;
     return `
     <a href="${op.page}" class="pcard" style="text-decoration:none;color:inherit;">
       <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
@@ -294,16 +294,8 @@ function initProduct() {
   }).join('');
 }
 
-async function initSizesFromAPI() {
+function initSizes(stockData) {
   const sizeGrid = document.getElementById('size-grid');
-  let stockData = null;
-
-  try {
-    const res = await fetch('/products');
-    const products = await res.json();
-    const found = products.find(p => p.id === PRODUCT_ID);
-    if (found && found.stock) stockData = found.stock;
-  } catch(e) {}
 
   sizeGrid.innerHTML = SIZES.map(s => {
     const q = stockData ? (stockData[s] ?? 0) : null;

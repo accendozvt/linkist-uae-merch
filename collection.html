@@ -15,7 +15,7 @@
 <style>
 .collection-page { max-width:1200px; margin:0 auto; padding:100px 64px 100px; }
 .collection-header { border-bottom:1px solid #1a1a1a; padding-bottom:32px; margin-bottom:48px; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
-.collection-title { font-family:'Inter',sans-serif; font-size:clamp(40px,5vw,72px); line-height:1; }
+.collection-title { font-family:'Inter',sans-serif; font-size:clamp(24px,3vw,44px); line-height:1; }
 .collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; line-height:1.8; }
 .collection-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#888; font-family:'Space Mono',monospace; font-size:13px; }
@@ -37,10 +37,9 @@
 .pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
 .pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
-.pcard-price { font-family:'Inter',sans-serif; font-size:24px; line-height:1; }
-.pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
-.price-was { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:400; color:#555; text-decoration:line-through; margin-right:4px; }
-.price-sale { color:#E53935; }
+.pcard-price { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; line-height:1.4; color:var(--white); display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; }
+.price-was { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#555; text-decoration:line-through; }
+.price-sale { font-size:16px; font-weight:700; color:var(--white) !important; }
 .pcard-img-dots { position:absolute; bottom:8px; left:0; right:0; display:flex; justify-content:center; gap:5px; z-index:2; }
 .pcard-dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.35); cursor:pointer; transition:background 0.2s; display:inline-block; }
 .pcard-dot.active { background:#fff; }

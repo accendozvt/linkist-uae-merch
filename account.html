@@ -22,7 +22,7 @@
   gap: 16px;
 }
 .account-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif; font-weight: 800;
   font-size: clamp(36px, 5vw, 56px);
   line-height: 1;
 }
@@ -89,7 +89,7 @@
   letter-spacing: 1px;
 }
 .order-total {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: 'Inter', sans-serif; font-weight: 800;
   font-size: 24px;
 }
 .order-total span {
@@ -132,7 +132,7 @@
 .order-item-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .order-item-name { font-size: 13px; font-weight: 600; }
 .order-item-meta { font-family: 'Space Mono', monospace; font-size: 10px; color: #555; margin-top: 3px; letter-spacing: 0.5px; }
-.order-item-price { margin-left: auto; font-family: 'Bebas Neue', sans-serif; font-size: 18px; }
+.order-item-price { margin-left: auto; font-family: 'Inter', sans-serif; font-weight: 800; font-size: 18px; }
 .order-card-footer {
   padding: 12px 20px;
   border-top: 1px solid #141414;
@@ -201,7 +201,7 @@
   padding: 60px 24px;
   color: #444;
 }
-.empty-state h3 { font-family: 'Bebas Neue', sans-serif; font-size: 36px; margin-bottom: 8px; color: #333; }
+.empty-state h3 { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 36px; margin-bottom: 8px; color: #333; }
 .empty-state p { font-size: 13px; margin-bottom: 24px; }
 
 /* Loading */
@@ -396,7 +396,7 @@ async function loadOrders() {
             <div class="order-item-name">${escHtml(item.product_name || '—')}</div>
             <div class="order-item-meta">SIZE: ${item.size} &nbsp;·&nbsp; QTY: ${item.quantity}</div>
           </div>
-          <div class="order-item-price">${(item.unit_price||0)*(item.quantity||0)} <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">AED</span></div>
+          <div class="order-item-price">AED ${((item.unit_price||0)*(item.quantity||0)).toFixed(2)}</div>
         </div>`;
       }).join('');
 
@@ -408,7 +408,7 @@ async function loadOrders() {
           </div>
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span class="order-status-badge status-${order.status}">${order.status}</span>
-            <div class="order-total">${total} <span>AED</span></div>
+            <div class="order-total">AED ${parseFloat(total).toFixed(2)}</div>
           </div>
         </div>
         <div class="order-card-items">${itemsHtml}</div>

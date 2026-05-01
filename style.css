@@ -25,22 +25,29 @@ body {
 }
 
 /* ── Display font (Inter replaces Bebas Neue) ── */
-/* All elements that used Bebas Neue get Inter 800 + uppercase + tight tracking */
+/* Headings: bold, uppercase, tight tracking */
 .product-name, .section-title, .cause-title, .collection-title,
-.price-main, .pcard-price, .product-price,
-.stat-num, .notify-modal h3,
 .ht-i, .ht-never, .ht-left,
-h1.product-name, h2.section-title,
-.auth-logo-text {
+.notify-modal h3, .auth-logo-text, .stat-num {
   font-family: 'Inter', sans-serif !important;
   font-weight: 800 !important;
   letter-spacing: -0.02em;
 }
-/* Keep uppercase for display headings */
 .product-name, .section-title, .cause-title, .collection-title,
 .ht-i, .ht-never, .ht-left {
   text-transform: uppercase;
 }
+/* Prices: medium-bold Inter, white, no uppercase */
+.price-main, .pcard-price, .product-price {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 700 !important;
+  color: var(--white) !important;
+  letter-spacing: -0.01em;
+}
+/* Sale price spans — white, not red */
+.pcard-price-sale, .price-sale { color: var(--white) !important; }
+/* Strikethrough original price */
+.price-was { color: #555 !important; text-decoration: line-through !important; font-weight: 400 !important; }
 
 /* ── NAV ── */
 nav {
