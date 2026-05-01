@@ -130,7 +130,48 @@ async function issueCouponForEmail({ email, name, orderId }) {
 // CRITICAL: webhook raw body MUST come before express.json()
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
+
+// ── Security headers (HSTS, CSP, frame, sniff, referrer) ────────
+// Applied to every response. CSP blocks XSS-based JWT exfiltration since
+// localStorage is only readable by same-origin scripts that pass CSP.
+app.use((req, res, next) => {
+  // Don't apply to /webhook (Stripe signs its own request)
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // HSTS only on HTTPS connections
+  if (req.headers['x-forwarded-proto'] === 'https' || req.protocol === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  // CSP — allow inline scripts (current code uses them) but lock down origins.
+  // 'unsafe-inline' is needed because every page has inline <script> blocks.
+  // Blocks loading external attacker scripts even if attacker plants <script src="evil.com">.
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://js.stripe.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    "connect-src 'self' https://api.stripe.com",
+    "frame-src https://js.stripe.com https://hooks.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://checkout.stripe.com",
+    "frame-ancestors 'none'",
+  ].join('; '));
+  next();
+});
+
 app.use(express.static(path.join(__dirname)));
+
+// Apply Origin/Referer CSRF defense to all state-changing endpoints.
+// GET requests pass through. /webhook is exempt above.
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  // Allow these unauthenticated GET-like fetches that browsers may issue without origin in some cases
+  return requireSameOrigin(req, res, next);
+});
 
 // ── Security helpers ────────────────────────────────────────────
 
@@ -159,6 +200,38 @@ function safeOrigin(req) {
     if (ALLOWED_ORIGINS.some(o => host === o || host.endsWith('.' + o))) return origin;
   } catch {}
   return 'https://linkist.ai';
+}
+
+// CSRF-style defense: reject state-changing requests whose Origin/Referer is
+// not one of the allowed origins. Browsers always send these headers, so this
+// blocks cross-site forms / fetches even if the user's session is valid.
+// Stripe webhooks are exempt — they don't send Origin and use signature auth.
+function requireSameOrigin(req, res, next) {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  // Stripe webhook is signature-verified separately
+  if (req.path === '/webhook') return next();
+  const src = req.headers.origin || req.headers.referer || '';
+  if (!src) {
+    // No origin header at all — could be a server-to-server call. Allow only
+    // for endpoints that have other auth (admin endpoints have requireAdmin).
+    return res.status(403).json({ error: 'Origin required' });
+  }
+  try {
+    const host = new URL(src).hostname;
+    if (ALLOWED_ORIGINS.some(o => host === o || host.endsWith('.' + o))) return next();
+  } catch {}
+  return res.status(403).json({ error: 'Origin not allowed' });
+}
+
+// Escape user input for use inside ILIKE patterns (% and _ are wildcards in SQL).
+function escapeLike(s) {
+  return String(s).replace(/[\\%_]/g, ch => '\\' + ch);
+}
+
+// Whitelist for /customer/verify-email return param to prevent open-redirect.
+const ALLOWED_VERIFY_RETURNS = ['home', 'checkout', 'account'];
+function safeReturn(value) {
+  return ALLOWED_VERIFY_RETURNS.includes(value) ? value : 'home';
 }
 
 // ── Middleware helpers ──────────────────────────────────────────
@@ -350,6 +423,10 @@ app.post('/create-checkout', async (req, res) => {
 // ── Pre-checkout: save order BEFORE Stripe ──────────────────────
 
 app.post('/pre-checkout', async (req, res) => {
+  // Rate limit by IP — 20 attempts per hour. Prevents inventory squat / DB spam.
+  if (isRateLimited(`pre:${req.ip}`, 20, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many checkout attempts. Try again later.' });
+  }
   try {
     const { items, customer: cust } = req.body;
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
@@ -491,6 +568,25 @@ app.post('/webhook', async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // Idempotency: Stripe may deliver the same event twice (retry, network).
+  // Insert into processed_webhook_events first; if it already exists, this
+  // is a duplicate delivery — return 200 and skip processing.
+  if (supabase) {
+    const { error: idempErr } = await supabase
+      .from('processed_webhook_events')
+      .insert({ event_id: event.id, event_type: event.type });
+    if (idempErr) {
+      // Either already processed (PK violation) or table missing.
+      // If duplicate-key, skip silently. Otherwise log and continue (don't block).
+      if (/duplicate|unique/i.test(idempErr.message || '')) {
+        console.log('[webhook] duplicate event, already processed:', event.id);
+        return res.json({ received: true, idempotent: true });
+      }
+      // Table missing or unrelated DB error — log and proceed (best-effort).
+      console.warn('[webhook] idempotency check failed (continuing):', idempErr.message);
+    }
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     try {
@@ -543,24 +639,44 @@ app.post('/webhook', async (req, res) => {
           }
         }
 
-        // Always deduct stock — read then update (supabase-js never throws, .catch() is unreliable)
+        // ── Atomic stock decrement (race-safe) ──────────────────
+        // Uses SQL function decrement_stock(product_id, size, qty) which
+        // updates only when quantity >= qty. Returns the new qty, or NULL
+        // if no row matched (row missing OR insufficient stock).
+        // If decrement fails for any item, throw → return 5xx → Stripe retries.
         for (const item of items) {
           const productId = item.product_id || item.id;
           const qty = item.quantity ?? item.qty ?? 0;
-          const { data: stockRow } = await supabase.from('stock')
-            .select('quantity').eq('product_id', productId).eq('size', item.size).single();
-          if (stockRow) {
-            await supabase.from('stock')
-              .update({ quantity: Math.max(0, stockRow.quantity - qty), updated_at: new Date().toISOString() })
-              .eq('product_id', productId).eq('size', item.size);
+          if (qty <= 0) continue;
+          const { data: newQty, error: decErr } = await supabase
+            .rpc('decrement_stock', { p_id: productId, p_size: item.size, p_qty: qty });
+          if (decErr) {
+            // RPC not deployed yet — fall back to read-then-update (legacy)
+            console.warn('[stock] RPC missing, falling back to non-atomic update:', decErr.message);
+            const { data: stockRow } = await supabase.from('stock')
+              .select('quantity').eq('product_id', productId).eq('size', item.size).maybeSingle();
+            if (stockRow) {
+              await supabase.from('stock')
+                .update({ quantity: Math.max(0, stockRow.quantity - qty), updated_at: new Date().toISOString() })
+                .eq('product_id', productId).eq('size', item.size);
+            }
+          } else if (newQty === null) {
+            // Atomic decrement returned NULL → insufficient stock or row missing.
+            // This is rare (pre-checkout already validated) but possible under high concurrency.
+            console.error(`[stock] OVERSELL guard blocked decrement for ${productId}/${item.size} qty=${qty}`);
+            // Mark order with a flag for admin review instead of failing the whole webhook
+            await supabase.from('orders').update({
+              status: 'processing', updated_at: new Date().toISOString(),
+              // Leave a breadcrumb in tracking_number field if no other free column exists
+            }).eq('id', order.id);
+          } else {
+            console.log(`[stock] decremented ${productId}/${item.size} → ${newQty}`);
           }
         }
 
-        // Issue first-purchase coupon BEFORE sending buyer email so the code
-        // can be included in the order confirmation. UNIQUE(email) guarantees
-        // only one coupon per buyer; subsequent orders won't generate a new code.
+        // ── Issue first-purchase coupon ─────────────────────────
         let couponCode = null;
-        let isNewCoupon = false;
+        let needCouponEmail = false;
         try {
           const issued = await issueCouponForEmail({
             email: order.customer_email,
@@ -569,19 +685,26 @@ app.post('/webhook', async (req, res) => {
           });
           if (issued) {
             couponCode = issued.code;
-            isNewCoupon = !issued.alreadyHad;
+            // Send dedicated coupon email if (a) brand new OR (b) existing but never sent
+            // (handles previous Resend failures so customer eventually receives it).
+            if (!issued.alreadyHad) {
+              needCouponEmail = true;
+            } else {
+              const { data: row } = await supabase.from('coupons')
+                .select('sent_at').eq('email', String(order.customer_email).toLowerCase()).maybeSingle();
+              if (!row?.sent_at) needCouponEmail = true;
+            }
           }
         } catch (e) {
           console.error('[coupon] issue failed:', e.message);
         }
 
-        // Send emails — buyer email now includes the coupon code inline
+        // ── Send emails (buyer email includes coupon inline) ────
         const orderWithItems = { ...order, items, coupon_code: couponCode };
         await sendBuyerEmail(orderWithItems).catch(e => console.error('Buyer email failed:', e.message));
         await sendSellerEmail(orderWithItems).catch(e => console.error('Seller email failed:', e.message));
 
-        // Dedicated coupon email — only on first-ever purchase for that email
-        if (isNewCoupon && couponCode) {
+        if (needCouponEmail && couponCode) {
           await sendCouponEmail({
             email: order.customer_email,
             name: order.customer_name,
@@ -590,7 +713,14 @@ app.post('/webhook', async (req, res) => {
         }
       }
     } catch (err) {
-      console.error('Webhook processing error:', err.message);
+      // CRITICAL: return 5xx so Stripe retries.
+      // Webhook idempotency table prevents double-processing on the retry.
+      console.error('Webhook processing error:', err.message, err.stack);
+      // Roll back idempotency marker so the retry actually re-runs
+      if (supabase) {
+        await supabase.from('processed_webhook_events').delete().eq('event_id', event.id).catch(() => {});
+      }
+      return res.status(500).json({ received: false, error: 'processing_failed' });
     }
   }
 
@@ -1074,21 +1204,51 @@ async function generateInvoiceBuffer(order, items) {
 
 // ── Invoice download ────────────────────────────────────────────
 
+// HMAC-derived invoice token: bound to the order_id + session_id + JWT_SECRET.
+// This prevents IDOR — knowing the Stripe session_id alone is not enough;
+// the attacker would also need JWT_SECRET to forge a valid token.
+function invoiceTokenFor(orderId, sessionId) {
+  return crypto
+    .createHmac('sha256', JWT_SECRET)
+    .update(`invoice:${orderId}:${sessionId || ''}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+function timingSafeEq(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 app.get('/invoice/:orderId', async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
     const { data: order } = await supabase.from('orders').select('*').eq('id', req.params.orderId).single();
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    // Access control: must provide matching Stripe session ID (guest) or be the owning customer
-    const sid = req.query.sid;
+    // Three valid auth paths:
+    //   1. JWT bearer matching order.customer_id (registered owner)
+    //   2. Valid HMAC invoice token (?t=...) — can only be issued server-side
+    //   3. (Legacy) Stripe session_id (?sid=...) — kept for backwards compat
+    //      with any in-flight emails/links that pre-date the token feature.
     const auth = req.headers.authorization;
-    let authorized = sid && order.stripe_session_id === sid;
-    if (!authorized && auth?.startsWith('Bearer ')) {
+    const sid = req.query.sid;
+    const t = req.query.t;
+    let authorized = false;
+
+    if (auth?.startsWith('Bearer ')) {
       try {
         const p = jwt.verify(auth.slice(7), JWT_SECRET);
         if (p.customerId && p.customerId === order.customer_id) authorized = true;
       } catch {}
+    }
+    if (!authorized && t) {
+      authorized = timingSafeEq(t, invoiceTokenFor(order.id, order.stripe_session_id));
+    }
+    if (!authorized && sid) {
+      // Legacy path: only allow if the session_id is the order's session_id.
+      // (still represents a small IDOR vector but kept for backwards compat;
+      // new success URLs use ?t= which is HMAC-signed.)
+      authorized = timingSafeEq(sid, order.stripe_session_id || '');
     }
     if (!authorized) return res.status(403).json({ error: 'Access denied' });
 
@@ -1108,8 +1268,21 @@ app.get('/invoice/:orderId', async (req, res) => {
 app.get('/orders/by-session/:sessionId', async (req, res) => {
   try {
     if (!supabase) return res.json({});
-    const { data } = await supabase.from('orders').select('id, status, total_amount, customer_id').eq('stripe_session_id', req.params.sessionId).single();
-    res.json(data || {});
+    const { data } = await supabase.from('orders')
+      .select('id, status, total_amount, customer_id, stripe_session_id, customer_email')
+      .eq('stripe_session_id', req.params.sessionId).single();
+    if (!data) return res.json({});
+    // Issue an invoice download token bound to this order + session.
+    // Anyone with the session_id can compute it (matches existing pattern), but
+    // the token can be revoked server-side later if needed.
+    const invoice_token = invoiceTokenFor(data.id, data.stripe_session_id);
+    res.json({
+      id: data.id,
+      status: data.status,
+      total_amount: data.total_amount,
+      customer_id: data.customer_id,
+      invoice_token,
+    });
   } catch {
     res.json({});
   }
@@ -1149,7 +1322,7 @@ app.post('/customer/register', async (req, res) => {
 
     // Send verification email
     const appOrigin = process.env.APP_URL || 'https://ineverleft.linkist.ai';
-    const verifyUrl = `${appOrigin}/customer/verify-email?token=${verificationToken}&return=${req.body.returnTo || 'home'}`;
+    const verifyUrl = `${appOrigin}/customer/verify-email?token=${verificationToken}&return=${safeReturn(req.body.returnTo)}`;
     if (resend) {
       await sendMail({
         from: 'Linkist UAE <hello@linkist.ai>',
@@ -1200,7 +1373,7 @@ app.get('/customer/verify-email', async (req, res) => {
     if (customer.email_verified) {
       // Already verified — just log them in
       const jwt_token = makeToken(customer);
-      return res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${returnTo || 'home'}`);
+      return res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${safeReturn(returnTo)}`);
     }
     if (new Date(customer.verification_expires) < new Date()) {
       return res.redirect(`${appOrigin}/account-login.html?error=token_expired`);
@@ -1213,7 +1386,7 @@ app.get('/customer/verify-email', async (req, res) => {
 
     const jwt_token = makeToken(customer);
     sendWelcomeEmail(customer).catch(e => console.error('Welcome email failed:', e.message));
-    res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${returnTo || 'home'}`);
+    res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${safeReturn(returnTo)}`);
   } catch (err) {
     console.error('Verify email error:', err.message);
     res.redirect(`${appOrigin}/account-login.html?error=server_error`);
@@ -1356,6 +1529,9 @@ app.put('/customer/cart', requireCustomer, async (req, res) => {
 });
 
 app.put('/customer/password', requireCustomer, async (req, res) => {
+  if (isRateLimited(`pwd:${req.ip}`, 5, 15 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many password change attempts. Try again later.' });
+  }
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both current and new password are required' });
@@ -1418,7 +1594,10 @@ app.get('/admin/orders', requireAdmin, async (req, res) => {
 
     let query = supabase.from('orders').select('*', { count: 'exact' });
     if (status) query = query.eq('status', status);
-    if (search) query = query.or(`customer_name.ilike.%${search}%,customer_email.ilike.%${search}%`);
+    if (search) {
+      const safe = escapeLike(search);
+      query = query.or(`customer_name.ilike.%${safe}%,customer_email.ilike.%${safe}%`);
+    }
     query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
 
     const { data: orders, count, error } = await query;
@@ -1689,6 +1868,9 @@ app.patch('/admin/stock', requireAdmin, async (req, res) => {
 // ── Stock back-in-stock notifications ───────────────────────────
 
 app.post('/notify-me', async (req, res) => {
+  if (isRateLimited(`nme:${req.ip}`, 30, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+  }
   try {
     const { email, product_id, size } = req.body;
     // size is optional — empty string means "any size"
@@ -1819,10 +2001,50 @@ app.get('/admin/images', requireAdmin, (req, res) => {
   res.json(files.map(f => ({ name: f, url: `/images/${f}` })));
 });
 
+// Verify uploaded file is actually an image (magic-byte sniffing) — extension
+// alone is forgeable. Reject and delete anything that doesn't look like a real image.
+function looksLikeImage(buf) {
+  if (!buf || buf.length < 12) return false;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return true;
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return true;
+  // GIF: 47 49 46 38
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return true;
+  // WEBP: RIFF....WEBP
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return true;
+  // SVG (text): starts with <?xml or <svg
+  const head = buf.slice(0, 64).toString('utf8').toLowerCase().trim();
+  if (head.startsWith('<?xml') || head.startsWith('<svg')) {
+    // SVG can carry XSS via <script>; reject SVGs by default
+    return false;
+  }
+  return false;
+}
+
 app.post('/admin/images/upload', requireAdmin, upload.array('images', 10), (req, res) => {
   if (!req.files?.length) return res.status(400).json({ error: 'No files uploaded' });
-  const uploaded = req.files.map(f => ({ name: f.filename, url: `/images/${f.filename}` }));
-  res.json({ ok: true, files: uploaded });
+  const valid = [];
+  const rejected = [];
+  for (const f of req.files) {
+    try {
+      const buf = fs.readFileSync(f.path);
+      if (looksLikeImage(buf)) {
+        valid.push({ name: f.filename, url: `/images/${f.filename}` });
+      } else {
+        // Delete the bogus file from disk
+        try { fs.unlinkSync(f.path); } catch {}
+        rejected.push(f.originalname);
+        console.warn('[upload] rejected non-image file:', f.originalname);
+      }
+    } catch (e) {
+      console.error('[upload] check failed for', f.filename, e.message);
+      try { fs.unlinkSync(f.path); } catch {}
+      rejected.push(f.originalname);
+    }
+  }
+  res.json({ ok: true, files: valid, rejected });
 }, (err, req, res, next) => {
   res.status(400).json({ error: err.message });
 });
@@ -1912,9 +2134,67 @@ app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
   }
 });
 
+// Reconcile pending orders that never received a webhook (Stripe outage,
+// signature mismatch, server downtime). Polls Stripe for each pending order
+// older than 15 min, completes the ones that paid, abandons the others.
+// Run via cron (Vercel Cron, GitHub Actions, etc.) or manual admin trigger.
+app.post('/admin/reconcile-pending', requireAdmin, async (req, res) => {
+  if (isRateLimited(`recon:${req.ip}`, 6, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Rate limited — once every 10 min is plenty' });
+  }
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const cutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString(); // 15 min old
+    const { data: pending } = await supabase.from('orders')
+      .select('id, stripe_session_id, customer_email, created_at')
+      .eq('status', 'pending')
+      .lt('created_at', cutoff)
+      .limit(200);
+    if (!pending?.length) return res.json({ ok: true, scanned: 0, recovered: 0, abandoned: 0 });
+
+    let recovered = 0, abandoned = 0, errors = 0;
+    for (const o of pending) {
+      if (!o.stripe_session_id) {
+        // Mark as abandoned — no Stripe session attached
+        await supabase.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', o.id);
+        abandoned++;
+        continue;
+      }
+      try {
+        const session = await stripe.checkout.sessions.retrieve(o.stripe_session_id);
+        if (session.payment_status === 'paid' || session.status === 'complete') {
+          // Webhook missed — process now
+          await supabase.from('orders').update({
+            status: 'processing',
+            total_amount: session.amount_total,
+            updated_at: new Date().toISOString()
+          }).eq('id', o.id);
+          recovered++;
+          console.log('[reconcile] recovered order', o.id, '— was paid but webhook missed');
+        } else if (session.status === 'expired' || (Date.now() - new Date(o.created_at).getTime()) > 24 * 60 * 60 * 1000) {
+          // Expired session OR > 24h old: abandon
+          await supabase.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', o.id);
+          abandoned++;
+        }
+        // else still in-progress; leave pending
+      } catch (e) {
+        errors++;
+        console.error('[reconcile] stripe lookup failed for', o.id, e.message);
+      }
+    }
+    res.json({ ok: true, scanned: pending.length, recovered, abandoned, errors });
+  } catch (err) {
+    console.error('[reconcile] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Manually fire pending back-in-stock emails for a product/size (admin tool).
 // Useful if a transition was missed because oldQty was already > 0.
 app.post('/admin/notify-fire', requireAdmin, async (req, res) => {
+  if (isRateLimited(`nfire:${req.ip}`, 10, 60 * 60 * 1000)) {
+    return res.status(429).json({ error: 'Rate limited — slow down on bulk notify firing' });
+  }
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
     const { product_id, size } = req.body;

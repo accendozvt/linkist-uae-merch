@@ -273,6 +273,7 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     </div>
     <div class="section-hdr">
       <div class="section-title-sm">Recent Orders</div>
+      <button class="btn-secondary" onclick="reconcilePending()" style="font-size:11px;padding:8px 14px;" title="Polls Stripe for pending orders that may have missed their webhook and finalises them">⟳ Reconcile Pending</button>
     </div>
     <div class="recent-orders" id="recent-orders-wrap">
       <div class="loading">Loading...</div>
@@ -970,6 +971,21 @@ async function loadCustomers() {
     html += '</tbody></table>';
     body.innerHTML = html;
   } catch(e) { body.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
+}
+
+async function reconcilePending() {
+  if (!confirm('Reconcile pending orders?\n\nThis polls Stripe for any orders stuck in "pending" status for over 15 minutes and finalises them. Safe to run.')) return;
+  try {
+    const res = await fetch('/admin/reconcile-pending', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    alert(`Reconciliation complete\n\nScanned: ${data.scanned || 0}\nRecovered: ${data.recovered || 0}\nAbandoned: ${data.abandoned || 0}\nErrors: ${data.errors || 0}`);
+    loadStats();
+    loadRecentOrders();
+  } catch (e) { alert('Failed: ' + e.message); }
 }
 
 async function deleteCustomer(email, name, btn) {
