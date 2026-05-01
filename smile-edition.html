@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -106,13 +106,13 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
-      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">ðŸ”” Notify me when a size is back in stock</a>
+      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">&#128276; Notify me when a size is back in stock</a>
     </div>
 
     <div>
       <span class="label">Quantity</span>
       <div class="qty-wrap">
-        <button class="qty-btn" id="qty-minus">âˆ’</button>
+        <button class="qty-btn" id="qty-minus">&minus;</button>
         <span class="qty-num" id="qty-num">1</span>
         <button class="qty-btn" id="qty-plus">+</button>
       </div>
@@ -121,7 +121,7 @@
     <div class="action-row">
       <button class="btn-primary full" id="atc-btn">Add to Cart</button>
     </div>
-    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART â†’</a>
+    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART &rarr;</a>
 
     <hr class="product-divider">
 
@@ -150,8 +150,8 @@
 <!-- NOTIFY MODAL -->
 <div class="notify-modal-overlay" id="notify-modal">
   <div class="notify-modal">
-    <button class="notify-modal-close" onclick="closeNotifyModal()">Ã—</button>
-    <h3>ðŸ”” Notify Me</h3>
+    <button class="notify-modal-close" onclick="closeNotifyModal()">&times;</button>
+    <h3>&#128276; Notify Me</h3>
     <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
     <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
     <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
@@ -163,7 +163,7 @@
 <script>
 const PRODUCT_ID = 'smile';
 let _product = PRODUCTS.find(p => p.id === PRODUCT_ID);
-let _productName = _product ? _product.name : 'Circle Edition';
+let _productName = _product ? _product.name : 'Smile Edition';
 let selectedSize = null;
 let qty = 1;
 
@@ -183,7 +183,7 @@ fetch('/products')
 
 function initProduct() {
   const p = _product;
-  document.title = p.name + ' â€” I Never Left Â· Linkist';
+  document.title = p.name + ' — I Never Left · Linkist';
 
   // Main image
   const mainImg = document.getElementById('prod-img');
@@ -260,7 +260,7 @@ async function initSizesFromAPI() {
     const products = await res.json();
     const found = products.find(p => p.id === PRODUCT_ID);
     if (found?.stock) stockData = found.stock;
-  } catch(e) { /* no stock data â€” all sizes show as available */ }
+  } catch(e) { /* no stock data */ }
 
   sizeGrid.innerHTML = SIZES.map(s => {
     const qty = stockData ? (stockData[s] ?? 0) : null;
@@ -269,19 +269,16 @@ async function initSizesFromAPI() {
     return `<button class="sz${isSoldOut ? ' sold-out' : ''}" data-size="${s}"${isSoldOut ? ' disabled' : ''}${isLow ? ` data-stock-warn="Only ${qty} left"` : ''}>${s}</button>`;
   }).join('');
 
-  // Add stock-warn tooltip styles
   if (stockData && SIZES.some(s => { const q = stockData[s] ?? 0; return q > 0 && q <= 4; })) {
     const style = document.createElement('style');
     style.textContent = `.sz[data-stock-warn]{position:relative;}.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;}.sz[data-stock-warn]:hover::after{opacity:1;}`;
     document.head.appendChild(style);
   }
 
-  // Show notify link if any size is sold out
   if (stockData && SIZES.some(s => (stockData[s] ?? 0) === 0)) {
     document.getElementById('notify-size-link').style.display = 'block';
   }
 
-  // Bind click on available sizes
   sizeGrid.querySelectorAll('.sz:not([disabled])').forEach(btn => {
     btn.addEventListener('click', () => {
       sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
@@ -315,12 +312,12 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   }
   Cart.add(_product, selectedSize, qty);
   const btn = document.getElementById('atc-btn');
-  btn.textContent = 'âœ“ Added to Cart';
+  btn.textContent = '&#10003; Added to Cart';
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
   document.getElementById('view-cart-btn').style.display = 'block';
-  showToast(_product.name + ' (' + selectedSize + ' Ã— ' + qty + ') added!');
+  showToast(_product.name + ' (' + selectedSize + ' x ' + qty + ') added!');
 });
 
 // Notify modal
@@ -342,7 +339,7 @@ async function submitNotify() {
   try {
     const res = await fetch('/notify-me', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, product_id: _notifyPid, size: _notifySize }) });
     const data = await res.json();
-    if (res.ok) { fb.textContent = "âœ“ You're on the list!"; fb.style.color='#007A3D'; fb.style.display='block'; setTimeout(closeNotifyModal, 2000); }
+    if (res.ok) { fb.textContent = "You're on the list!"; fb.style.color='#007A3D'; fb.style.display='block'; setTimeout(closeNotifyModal, 2000); }
     else { fb.textContent = data.error || 'Error'; fb.style.color='#E53935'; fb.style.display='block'; }
   } catch { fb.textContent = 'Could not connect.'; fb.style.color='#E53935'; fb.style.display='block'; }
 }
@@ -354,4 +351,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
