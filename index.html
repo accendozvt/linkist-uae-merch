@@ -289,7 +289,7 @@
 <div class="notify-modal-overlay" id="notify-modal">
   <div class="notify-modal" style="position:relative;">
     <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
-    <h3>🔔 Notify Me</h3>
+    <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;margin-bottom:2px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify Me</h3>
     <p id="notify-modal-desc">Enter your email and we'll let you know when this size is back in stock.</p>
     <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
     <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
@@ -344,11 +344,11 @@ function renderProductCard(p) {
     </a>
     ${soldOut
       ? `<div class="pcard-soldout-label">Sold Out
-           <button class="notify-btn" style="display:block;margin-top:8px;" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}','')">🔔 Notify me when back</button>
+           <button class="notify-btn" style="display:block;margin-top:8px;" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}','')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when back</button>
          </div>`
       : `<div class="pcard-quickadd">
           <div class="pcard-qa-sizes" id="qa-sizes-${p.id}">${sizeBtns}</div>
-          ${hasSoldOutSizes ? `<button class="notify-btn" id="qa-notify-${p.id}" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}', getSelectedOrFirstSoldOut('${p.id}'))">🔔 Notify me when my size is back</button>` : ''}
+          ${hasSoldOutSizes ? `<button class="notify-btn" id="qa-notify-${p.id}" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}', getSelectedOrFirstSoldOut('${p.id}'))"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when my size is back</button>` : ''}
           <div class="pcard-qa-bottom">
             <div class="qty-wrap">
               <button class="qty-btn" onclick="qaQty('${p.id}',-1)">−</button>
@@ -467,7 +467,7 @@ async function submitNotify() {
     });
     const data = await res.json();
     if (res.ok) {
-      fb.textContent = '✓ You\'re on the list! We\'ll email you when it\'s back.';
+      fb.textContent = 'You\'re on the list! We\'ll email you when it\'s back.';
       fb.style.color = '#007A3D'; fb.style.display = 'block';
       setTimeout(closeNotifyModal, 2500);
     } else {

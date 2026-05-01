@@ -43,6 +43,42 @@ const upload = multer({
 // Product name map for notifications
 const PRODUCT_NAMES = { circle: 'Circle Edition', smile: 'Smile Edition', stripe: 'Stripe Edition', stealth: 'Stealth Edition' };
 
+// Authoritative product catalog — used as fallback when products are missing/deleted from DB
+const CATALOG = [
+  {
+    id: 'circle', name: 'Circle Edition', tagline: 'The original statement piece',
+    tag: 'DESIGN 01 · STATEMENT', price: 97, original_price: 149, badge: 'BESTSELLER',
+    page: 'circle-edition.html', image: '/images/Linkist%2001.png', images: [],
+    description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
+    details: ['Dri-Fit performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
+    active: true
+  },
+  {
+    id: 'smile', name: 'Smile Edition', tagline: 'Quiet pride, loud message',
+    tag: 'DESIGN 02 · SUBTLE', price: 97, original_price: 149, badge: 'NEW',
+    page: 'smile-edition.html', image: '/images/Linkist%2002.png', images: [],
+    description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
+    active: true
+  },
+  {
+    id: 'stripe', name: 'Stripe Edition', tagline: 'Clean, wearable, timeless',
+    tag: 'DESIGN 03 · CLASSIC', price: 97, original_price: 149, badge: null,
+    page: 'stripe-edition.html', image: '/images/Linkist%2003.png', images: [],
+    description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
+    details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
+    active: true
+  },
+  {
+    id: 'stealth', name: 'Stealth Edition', tagline: 'For those who know',
+    tag: 'DESIGN 04 · PREMIUM', price: 169, badge: 'PREMIUM',
+    page: 'stealth-edition.html', image: '/images/Linkist%2004.png', images: [],
+    description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
+    details: ['Premium cotton fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop'],
+    active: true
+  }
+];
+
 // CRITICAL: webhook raw body MUST come before express.json()
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
@@ -134,13 +170,34 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/products', async (req, res) => {
   try {
-    if (!supabase) return res.json([]);
-    const { data: products } = await supabase.from('products').select('*').eq('active', true).order('created_at');
-    const { data: stock } = await supabase.from('stock').select('*');
-    const result = (products || []).map(p => ({
-      ...p,
-      stock: (stock || []).filter(s => s.product_id === p.id).reduce((acc, s) => { acc[s.size] = s.quantity; return acc; }, {})
-    }));
+    // Build stock index from DB
+    let dbMap = {}, stockMap = {};
+    if (supabase) {
+      const { data: products } = await supabase.from('products').select('*').order('created_at');
+      const { data: stock } = await supabase.from('stock').select('*');
+      (products || []).forEach(p => { dbMap[p.id] = p; });
+      (stock || []).forEach(s => {
+        if (!stockMap[s.product_id]) stockMap[s.product_id] = {};
+        stockMap[s.product_id][s.size] = s.quantity;
+      });
+    }
+
+    // Always return all CATALOG products (DB data takes precedence where present & active)
+    const result = CATALOG.map(base => {
+      const db = dbMap[base.id];
+      // Use DB version if it exists; fall back to catalog if missing or soft-deleted
+      const merged = (db && db.active !== false) ? { ...base, ...db } : { ...base };
+      merged.stock = stockMap[base.id] || {};
+      return merged;
+    });
+
+    // Also include any DB-only active products not in the catalog
+    Object.values(dbMap).forEach(p => {
+      if (p.active !== false && !CATALOG.find(c => c.id === p.id)) {
+        result.push({ ...p, stock: stockMap[p.id] || {} });
+      }
+    });
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -629,14 +686,14 @@ async function sendShippingEmail(order, items, trackingNumber) {
       <div style="height:6px;background:linear-gradient(90deg,#C8102E 25%,#fff 25%,#fff 50%,#111 50%,#111 75%,#007A3D 75%);"></div>
       <div style="padding:40px;text-align:center;">
         <div style="font-size:24px;font-weight:900;letter-spacing:2px;">LINKIST</div>
-        <div style="font-size:48px;margin:16px 0;">🚀</div>
+        <div style="width:56px;height:56px;margin:20px auto;background:#1a1a1a;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #333;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C8102E" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
         <h1 style="color:#fff;font-size:24px;">Your order is on its way!</h1>
         <p style="color:#888;font-size:13px;">Order #${orderId}</p>
         ${trackingNumber ? `<div style="background:#111;border:1px solid #1e1e1e;border-radius:8px;padding:16px;margin:24px 0;"><p style="color:#888;margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Tracking Number</p><p style="color:#fff;font-family:monospace;font-size:16px;margin:0;">${escHtml(trackingNumber)}</p></div>` : ''}
         <div style="margin-top:24px;">
           ${(items || []).map(i => `<p style="color:#ccc;font-size:13px;">${escHtml(i.product_name)} — ${escHtml(i.size)} × ${i.quantity}</p>`).join('')}
         </div>
-        <p style="color:#555;font-size:12px;margin-top:32px;">#istandwithUAE · linkist.ai</p>
+        <p style="color:#555;font-size:12px;margin-top:32px;">#WeStandWithUAE · linkist.ai</p>
       </div>
     </div>`
   });
@@ -653,11 +710,11 @@ async function sendDeliveredEmail(order, items) {
       <div style="height:6px;background:linear-gradient(90deg,#C8102E 25%,#fff 25%,#fff 50%,#111 50%,#111 75%,#007A3D 75%);"></div>
       <div style="padding:40px;text-align:center;">
         <div style="font-size:24px;font-weight:900;letter-spacing:2px;">LINKIST</div>
-        <div style="font-size:48px;margin:16px 0;">📦</div>
+        <div style="width:56px;height:56px;margin:20px auto;background:#1a1a1a;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #333;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007A3D" stroke-width="2"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><polyline points="16 3 12 7 8 3"/></svg></div>
         <h1 style="color:#fff;font-size:24px;">Your order has arrived!</h1>
         <p style="color:#888;font-size:14px;line-height:1.7;">Order #${orderId}<br>Thank you for standing with the UAE.</p>
         <p style="color:#007A3D;font-size:16px;font-style:italic;margin-top:20px;">"I Never Left."</p>
-        <p style="color:#555;font-size:12px;margin-top:32px;">#istandwithUAE · #borninUAE · linkist.ai</p>
+        <p style="color:#555;font-size:12px;margin-top:32px;">#WeStandWithUAE · #borninUAE · linkist.ai</p>
       </div>
     </div>`
   });
@@ -742,7 +799,7 @@ async function generateInvoiceBuffer(order, items) {
     doc.moveTo(50, 745).lineTo(545, 745).lineWidth(0.5).stroke('#cccccc');
     doc.fontSize(8).font('Helvetica').fillColor('#999999')
       .text('100% of proceeds go to UAE community relief · Thank you for standing with the UAE', 50, 755, { align: 'center', width: 495 })
-      .text('linkist.ai  ·  #istandwithUAE  ·  #borninUAE', 50, 768, { align: 'center', width: 495 });
+      .text('linkist.ai  ·  #WeStandWithUAE  ·  #borninUAE', 50, 768, { align: 'center', width: 495 });
 
     // Bottom flag bar
     doc.rect(0, 828, 595, 5).fill('#007A3D');
@@ -1073,10 +1130,22 @@ app.patch('/admin/orders/:id/status', requireAdmin, async (req, res) => {
 
 app.get('/admin/products', requireAdmin, async (req, res) => {
   try {
-    if (!supabase) return res.json([]);
-    const { data, error } = await supabase.from('products').select('*').order('created_at');
-    if (error) throw error;
-    res.json(data || []);
+    let dbMap = {};
+    if (supabase) {
+      const { data, error } = await supabase.from('products').select('*').order('created_at');
+      if (error) throw error;
+      (data || []).forEach(p => { dbMap[p.id] = p; });
+    }
+    // Catalog products merged with DB data; missing ones marked as restorable
+    const result = CATALOG.map(base => {
+      const db = dbMap[base.id];
+      return db ? db : { ...base, active: false, _catalog_missing: true };
+    });
+    // Also include DB-only products not in catalog
+    Object.values(dbMap).forEach(p => {
+      if (!CATALOG.find(c => c.id === p.id)) result.push(p);
+    });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1116,7 +1185,24 @@ app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
     if ('images' in body) body.images = Array.isArray(body.images) ? body.images : [];
     if ('details' in body) body.details = Array.isArray(body.details) ? body.details : (typeof body.details === 'string' && body.details ? [body.details] : []);
     const updates = { ...body, updated_at: new Date().toISOString() };
-    const { data, error } = await supabase.from('products').update(updates).eq('id', req.params.id).select().single();
+
+    // Check if the row exists first
+    const { data: existing } = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
+
+    let data, error;
+    if (existing) {
+      ({ data, error } = await supabase.from('products').update(updates).eq('id', req.params.id).select().single());
+    } else {
+      // Row missing from DB (hard-deleted) — re-insert from catalog base + requested updates
+      const catalogBase = CATALOG.find(p => p.id === req.params.id);
+      if (!catalogBase) return res.status(404).json({ error: 'Product not found in catalog or DB' });
+      ({ data, error } = await supabase.from('products').insert({ ...catalogBase, ...updates }).select().single());
+      if (!error) {
+        // Recreate stock rows at zero
+        const SIZES = ['XS','S','M','L','XL','XXL'];
+        await supabase.from('stock').insert(SIZES.map(s => ({ product_id: req.params.id, size: s, quantity: 0 })));
+      }
+    }
     if (error) throw error;
     res.json(data);
   } catch (err) {

@@ -174,7 +174,7 @@ function stepsHTML(active) {
   const s = (n) => active > n ? 'done' : active === n ? 'active' : '';
   return `<div class="co-steps">
     <div class="co-step ${s(1)}">
-      <div class="co-step-num">${active > 1 ? '✓' : '1'}</div>
+      <div class="co-step-num">${active > 1 ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '1'}</div>
       <span>Delivery</span>
     </div>
     <div class="co-step-line"></div>

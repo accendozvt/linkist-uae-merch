@@ -106,7 +106,7 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
-      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">🔔 Notify me when a size is back in stock</a>
+      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when a size is back in stock</a>
     </div>
 
     <div>
@@ -151,7 +151,7 @@
 <div class="notify-modal-overlay" id="notify-modal">
   <div class="notify-modal">
     <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
-    <h3>🔔 Notify Me</h3>
+    <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;margin-bottom:2px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify Me</h3>
     <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
     <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
     <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
@@ -315,7 +315,7 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   }
   Cart.add(_product, selectedSize, qty);
   const btn = document.getElementById('atc-btn');
-  btn.textContent = '✓ Added to Cart';
+  btn.textContent = 'Added to Cart';
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
@@ -342,7 +342,7 @@ async function submitNotify() {
   try {
     const res = await fetch('/notify-me', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, product_id: _notifyPid, size: _notifySize }) });
     const data = await res.json();
-    if (res.ok) { fb.textContent = "✓ You're on the list!"; fb.style.color='#007A3D'; fb.style.display='block'; setTimeout(closeNotifyModal, 2000); }
+    if (res.ok) { fb.textContent = "You're on the list!"; fb.style.color='#007A3D'; fb.style.display='block'; setTimeout(closeNotifyModal, 2000); }
     else { fb.textContent = data.error || 'Error'; fb.style.color='#E53935'; fb.style.display='block'; }
   } catch { fb.textContent = 'Could not connect.'; fb.style.color='#E53935'; fb.style.display='block'; }
 }
