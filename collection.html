@@ -167,21 +167,21 @@ function initCardCarousels() {
   });
 }
 
+// Instant render from PRODUCTS so page never shows "Loading..."
+const _cgrid = document.getElementById('collection-grid');
+_cgrid.className = 'collection-grid';
+_cgrid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+initCardCarousels();
+
+// Background refresh with live stock/price data
 fetch('/products')
   .then(r => r.json())
   .then(products => {
-    const list = products.length ? products : PRODUCTS;
-    const grid = document.getElementById('collection-grid');
-    grid.className = 'collection-grid';
-    grid.innerHTML = list.map(renderProductCard).join('');
+    if (!products || !products.length) return;
+    _cgrid.innerHTML = products.map(renderProductCard).join('');
     initCardCarousels();
   })
-  .catch(() => {
-    const grid = document.getElementById('collection-grid');
-    grid.className = 'collection-grid';
-    grid.innerHTML = PRODUCTS.map(renderProductCard).join('');
-    initCardCarousels();
-  });
+  .catch(() => {});
 
 let _notifyPid = '', _notifySize = '';
 function openNotifyModal(pid, pname, size) {
