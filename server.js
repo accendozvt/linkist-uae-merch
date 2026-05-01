@@ -213,11 +213,19 @@ app.get('/products', async (req, res) => {
       }
     });
 
-    // Sort by sort_order if available, preserving catalog order as default
+    // Sort by sort_order (lower=earlier) when set; CATALOG order otherwise.
+    // Explicit sort_order beats null; ties broken by catalog index for stability.
+    const catalogIndex = id => {
+      const i = CATALOG.findIndex(c => c.id === id);
+      return i >= 0 ? i : 999;
+    };
     result.sort((a, b) => {
-      const ao = a.sort_order ?? 999;
-      const bo = b.sort_order ?? 999;
-      return ao - bo;
+      const ao = (a.sort_order ?? null);
+      const bo = (b.sort_order ?? null);
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      if (ao !== null && bo === null) return -1;
+      if (ao === null && bo !== null) return 1;
+      return catalogIndex(a.id) - catalogIndex(b.id);
     });
 
     res.json(result);
@@ -1383,13 +1391,42 @@ app.get('/admin/stock', requireAdmin, async (req, res) => {
   }
 });
 
+// Ensure a product row exists in DB — inserts from CATALOG if missing.
+// Required before stock upserts (FK constraint) and any product PATCH on a catalog-only product.
+async function ensureProductInDb(productId) {
+  if (!supabase) return false;
+  const { data: existing } = await supabase.from('products').select('id').eq('id', productId).maybeSingle();
+  if (existing) return true;
+  const catalogBase = CATALOG.find(p => p.id === productId);
+  if (!catalogBase) return false;
+  // Strip client-only fields not in DB schema
+  const { originalPrice, _catalog_missing, _catalog_only, stock, ...safeBase } = catalogBase;
+  const { error } = await supabase.from('products').insert(safeBase);
+  if (error) {
+    console.error('ensureProductInDb insert failed:', productId, error.message);
+    return false;
+  }
+  console.log('[ensureProductInDb] auto-inserted', productId, 'from catalog');
+  return true;
+}
+
 app.patch('/admin/stock', requireAdmin, async (req, res) => {
   try {
     const { productId, size, quantity } = req.body;
     if (!productId || !size || quantity === undefined) return res.status(400).json({ error: 'productId, size and quantity are required' });
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
 
+    // Make sure the product exists in DB before upserting stock (avoid FK violation for catalog-only products)
+    const ok = await ensureProductInDb(productId);
+    if (!ok) return res.status(404).json({ error: `Product '${productId}' not found in catalog or DB` });
+
     const newQty = Math.max(0, parseInt(quantity));
+
+    // Fetch the OLD quantity so we only fire notifications on a true out→in-stock transition
+    const { data: existingStock } = await supabase.from('stock')
+      .select('quantity').eq('product_id', productId).eq('size', size).maybeSingle();
+    const oldQty = existingStock?.quantity ?? 0;
+
     const { data, error } = await supabase.from('stock').upsert({
       product_id: productId,
       size,
@@ -1398,10 +1435,15 @@ app.patch('/admin/stock', requireAdmin, async (req, res) => {
     }, { onConflict: 'product_id,size' }).select().single();
 
     if (error) throw error;
-    // Fire back-in-stock notifications asynchronously
-    fireStockNotifications(productId, size, newQty).catch(() => {});
+
+    // Only dispatch back-in-stock emails when stock truly transitions from 0 to >0
+    if (oldQty === 0 && newQty > 0) {
+      console.log(`[stock-notify] Trigger: ${productId}/${size} 0 → ${newQty}`);
+      fireStockNotifications(productId, size, newQty).catch(e => console.error('[stock-notify] dispatch error:', e.message));
+    }
     res.json(data);
   } catch (err) {
+    console.error('PATCH /admin/stock error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1429,32 +1471,44 @@ app.post('/notify-me', async (req, res) => {
 });
 
 async function fireStockNotifications(productId, size, newQty) {
-  if (!supabase || !resend || newQty <= 0) return;
+  if (!supabase) { console.log('[stock-notify] skipped — supabase not configured'); return; }
+  if (!resend) { console.log('[stock-notify] skipped — RESEND_API_KEY not configured'); return; }
+  if (newQty <= 0) { console.log('[stock-notify] skipped — newQty=0'); return; }
   try {
     const productName = PRODUCT_NAMES[productId] || productId;
     // Notify both: size-specific subscribers AND any-size (size='') subscribers
     const sizesToQuery = size ? [size, ''] : [''];
-    const { data: notifs } = await supabase.from('stock_notifications')
+    const { data: notifs, error: queryErr } = await supabase.from('stock_notifications')
       .select('id, email, size')
       .eq('product_id', productId)
       .in('size', sizesToQuery)
       .is('notified_at', null);
+    if (queryErr) { console.error('[stock-notify] query error:', queryErr.message); return; }
+    console.log(`[stock-notify] Found ${notifs?.length || 0} pending notif(s) for ${productId}/${size || 'any'}`);
     if (!notifs?.length) return;
+    let sent = 0, failed = 0;
     for (const n of notifs) {
       // For any-size subscribers, tell them the specific size that came back
       const notifySize = n.size || size;
-      await sendStockNotificationEmail(n.email, productName, productId, notifySize).catch(e =>
-        console.error('Stock notif email failed:', e.message)
-      );
+      try {
+        await sendStockNotificationEmail(n.email, productName, productId, notifySize);
+        sent++;
+        console.log(`[stock-notify] ✓ sent to ${n.email} (${productId}/${notifySize})`);
+      } catch (e) {
+        failed++;
+        console.error(`[stock-notify] ✗ failed for ${n.email}:`, e.message);
+      }
     }
-    // Mark notified
-    const ts = new Date().toISOString();
-    await supabase.from('stock_notifications')
-      .update({ notified_at: ts })
-      .eq('product_id', productId).in('size', sizesToQuery).is('notified_at', null);
-    console.log(`[stock-notify] Sent ${notifs.length} notification(s) for ${productId}/${size}`);
+    // Mark only successfully-processed notifs as done (so failures retry on next stock change)
+    if (sent > 0) {
+      const ts = new Date().toISOString();
+      await supabase.from('stock_notifications')
+        .update({ notified_at: ts })
+        .eq('product_id', productId).in('size', sizesToQuery).is('notified_at', null);
+    }
+    console.log(`[stock-notify] Done — sent: ${sent}, failed: ${failed}`);
   } catch (e) {
-    console.error('fireStockNotifications error:', e.message);
+    console.error('[stock-notify] fatal error:', e.message);
   }
 }
 

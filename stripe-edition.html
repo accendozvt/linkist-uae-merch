@@ -207,16 +207,19 @@ document.getElementById('nav-root').innerHTML = renderNav();
 document.getElementById('footer-root').innerHTML = renderFooter();
 
 // Fetch fresh product data from API, fall back to local PRODUCTS
-// Single fetch — data used for both product info AND stock
+// Render INSTANTLY from local PRODUCTS so the page paints immediately,
+// then refresh from /products API in the background to pick up live stock + price changes.
+initProduct(_product?.stock || null);
 fetch('/products')
   .then(r => r.json())
   .then(products => {
     const fresh = products.find(p => p.id === PRODUCT_ID);
-    if (fresh) _product = fresh;
+    if (!fresh) return;
+    _product = fresh;
     _productName = _product.name;
     initProduct(_product.stock || null);
   })
-  .catch(() => initProduct(null));
+  .catch(() => {});
 
 function fmtPrice(p) {
   return 'AED ' + parseFloat(p).toFixed(2);
