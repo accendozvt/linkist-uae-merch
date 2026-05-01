@@ -215,18 +215,14 @@
 
 @media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px 32px} .stats-row{padding:0 40px 80px;grid-template-columns:repeat(2,1fr)} .collection{padding:0 40px 80px} }
 @media(max-width:640px) {
-  /* Hero mobile */
+  /* Hero mobile — keep circle & title at full size, push badge/CTA outside the arcs */
   .hero { height:100vh; height:100svh; padding:0 20px; }
-  .circle-svg { width:220px; height:220px; }
-  .ht-i, .ht-left { font-size:clamp(44px,12vw,72px); }
-  .ht-never { font-size:clamp(58px,18vw,90px); }
-  .hero-sub { margin-top:18px; font-size:12px; line-height:1.7; }
-  .hero-divider { margin-top:22px; }
-  .hero-cta {
-    margin-top:16px;
-    color:rgba(255,255,255,0.78);
-    font-size:10px;
-  }
+  /* Push badge far enough above the top arc */
+  .hero-badge { margin-bottom:52px; }
+  /* Push CTA far enough below the bottom arc */
+  .hero-sub { margin-top:20px; }
+  .hero-divider { margin-top:20px; }
+  .hero-cta { margin-top:40px; color:rgba(255,255,255,0.78); font-size:10px; }
   .hero-cta span { letter-spacing:0.12em; }
   .hero-hashtags {
     flex-wrap:wrap; justify-content:center; gap:4px 10px;
