@@ -272,13 +272,50 @@ function renderStep1() {
               <input type="text" id="co-postal" value="${escHtml(formData.postal||'')}" placeholder="Optional" autocomplete="postal-code"/>
             </div>
             <div class="field">
-              <label>Country *</label>
-              <input type="text" id="co-country" value="${escHtml(formData.country||'United Arab Emirates')}" placeholder="UAE" autocomplete="country-name"/>
+              <label>Country</label>
+              <input type="text" id="co-country" value="United Arab Emirates" disabled style="background:#0d0d0d;color:#888;cursor:not-allowed;"/>
+              <div style="font-family:'Space Mono',monospace;font-size:9px;color:#555;letter-spacing:1px;margin-top:6px;">Delivery is currently UAE-only</div>
             </div>
           </div>
           <label class="co-save-row">
             <input type="checkbox" id="co-save" ${formData.saveAddress!==false?'checked':''}/> Save address to my account
           </label>
+
+          <!-- Billing address toggle -->
+          <div class="co-section-title" style="margin-top:24px;">Billing Address</div>
+          <label class="co-save-row" style="margin-top:0;">
+            <input type="checkbox" id="co-bill-same" ${formData.billingDifferent?'':'checked'} onchange="toggleBilling()"/> Billing address is the same as shipping
+          </label>
+          <div id="co-billing-fields" style="display:${formData.billingDifferent?'block':'none'};margin-top:14px;">
+            <div class="field">
+              <label>Billing Address Line 1 *</label>
+              <input type="text" id="co-bill-line1" value="${escHtml(formData.billing_line1||'')}" placeholder="Building, street, area"/>
+            </div>
+            <div class="field">
+              <label>Billing Address Line 2</label>
+              <input type="text" id="co-bill-line2" value="${escHtml(formData.billing_line2||'')}" placeholder="Apartment, floor, unit (optional)"/>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>State / Region *</label>
+                <input type="text" id="co-bill-state" value="${escHtml(formData.billing_state||'')}" placeholder="State / Emirate"/>
+              </div>
+              <div class="field">
+                <label>City *</label>
+                <input type="text" id="co-bill-city" value="${escHtml(formData.billing_city||'')}" placeholder="City"/>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>Postal Code</label>
+                <input type="text" id="co-bill-postal" value="${escHtml(formData.billing_postal||'')}" placeholder="Optional"/>
+              </div>
+              <div class="field">
+                <label>Country *</label>
+                <input type="text" id="co-bill-country" value="${escHtml(formData.billing_country||'United Arab Emirates')}" placeholder="Country"/>
+              </div>
+            </div>
+          </div>
         </div>
         <div style="margin-top:16px;">
           <button class="btn-primary full" onclick="continueToPayment()">
@@ -296,6 +333,9 @@ function renderStep2() {
   currentStep = 2;
   document.getElementById('co-steps-root').innerHTML = stepsHTML(2);
   const addr = [formData.line1, formData.line2, formData.city||formData.state, formData.state, formData.postal, formData.country].filter(Boolean).join(', ');
+  const billAddr = formData.billingDifferent
+    ? [formData.billing_line1, formData.billing_line2, formData.billing_city, formData.billing_state, formData.billing_postal, formData.billing_country].filter(Boolean).join(', ')
+    : 'Same as shipping';
   const total = Cart.total();
   document.getElementById('co-body').innerHTML = `
     <div class="co-layout">
@@ -310,6 +350,7 @@ function renderStep2() {
           <div class="co-review-row"><span class="co-review-label">Email</span><span class="co-review-val">${escHtml(formData.email)}</span></div>
           <div class="co-review-row"><span class="co-review-label">Phone</span><span class="co-review-val">${escHtml(formData.phone)}</span></div>
           <div class="co-review-row"><span class="co-review-label">Ship To</span><span class="co-review-val">${escHtml(addr)}</span></div>
+          <div class="co-review-row"><span class="co-review-label">Bill To</span><span class="co-review-val">${escHtml(billAddr)}</span></div>
         </div>
 
         <div class="co-card" style="margin-top:14px;">
@@ -333,6 +374,11 @@ function renderStep2() {
 }
 
 // ── Validation & Navigation ───────────────────────────────────
+function toggleBilling() {
+  const same = document.getElementById('co-bill-same').checked;
+  document.getElementById('co-billing-fields').style.display = same ? 'none' : 'block';
+}
+
 function continueToPayment() {
   const errEl = document.getElementById('co-error');
   errEl.style.display = 'none';
@@ -345,17 +391,38 @@ function continueToPayment() {
   const state = document.getElementById('co-state').value;
   const city = document.getElementById('co-city').value.trim();
   const postal = document.getElementById('co-postal').value.trim();
-  const country = document.getElementById('co-country').value.trim();
+  // Country is locked to UAE — never read from a disabled input
+  const country = 'United Arab Emirates';
   const saveAddress = document.getElementById('co-save').checked;
+
+  // Billing address fields
+  const billSame = document.getElementById('co-bill-same').checked;
+  const billingDifferent = !billSame;
+  const billing_line1   = billingDifferent ? document.getElementById('co-bill-line1').value.trim()   : '';
+  const billing_line2   = billingDifferent ? document.getElementById('co-bill-line2').value.trim()   : '';
+  const billing_city    = billingDifferent ? document.getElementById('co-bill-city').value.trim()    : '';
+  const billing_state   = billingDifferent ? document.getElementById('co-bill-state').value.trim()   : '';
+  const billing_postal  = billingDifferent ? document.getElementById('co-bill-postal').value.trim()  : '';
+  const billing_country = billingDifferent ? document.getElementById('co-bill-country').value.trim() : '';
 
   if (!name) return showErr('co-error', 'Full name is required.');
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('co-error', 'A valid email address is required.');
   if (!phone) return showErr('co-error', 'Phone number is required for delivery coordination.');
   if (!line1) return showErr('co-error', 'Address line 1 is required.');
   if (!state) return showErr('co-error', 'Please select your emirate.');
-  if (!country) return showErr('co-error', 'Country is required.');
 
-  formData = { name, phone, email, line1, line2, state, city, postal, country, saveAddress };
+  if (billingDifferent) {
+    if (!billing_line1) return showErr('co-error', 'Billing address line 1 is required.');
+    if (!billing_city)  return showErr('co-error', 'Billing city is required.');
+    if (!billing_state) return showErr('co-error', 'Billing state/region is required.');
+    if (!billing_country) return showErr('co-error', 'Billing country is required.');
+  }
+
+  formData = {
+    name, phone, email, line1, line2, state, city, postal, country, saveAddress,
+    billingDifferent,
+    billing_line1, billing_line2, billing_city, billing_state, billing_postal, billing_country,
+  };
   window.scrollTo({ top: 0, behavior: 'smooth' });
   renderStep2();
 }
@@ -380,6 +447,14 @@ async function submitPayment() {
           country: formData.country,
           customerId: customer?.customerId || null,
           saveAddress: formData.saveAddress,
+          // Billing address — only sent when user opted out of "same as shipping"
+          billing_different: !!formData.billingDifferent,
+          billing_line1:   formData.billing_line1   || null,
+          billing_line2:   formData.billing_line2   || null,
+          billing_city:    formData.billing_city    || null,
+          billing_state:   formData.billing_state   || null,
+          billing_postal:  formData.billing_postal  || null,
+          billing_country: formData.billing_country || null,
         }
       })
     });

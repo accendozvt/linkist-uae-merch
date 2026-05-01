@@ -123,6 +123,40 @@
 .price-was { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:400; color:#555; text-decoration:line-through; margin-right:4px; }
 .pcard-price-sale { color:#F5F5F5 !important; }
 
+/* COUPON PROMO STRIP */
+.coupon-promo { max-width:1200px; margin:0 auto 32px; padding:0 64px; }
+.coupon-promo-inner {
+  display:flex; gap:18px; align-items:flex-start;
+  padding:22px 26px; background:linear-gradient(135deg,#0f0f0f 0%,#1a1010 100%);
+  border:1px solid rgba(229,57,53,0.22); border-radius:14px;
+  position:relative; overflow:hidden;
+}
+.coupon-promo-inner::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:linear-gradient(180deg,#C8102E 0%,#fff 33%,#111 66%,#007A3D 100%);
+}
+.coupon-promo-icon {
+  flex-shrink:0; width:46px; height:46px; border-radius:50%;
+  background:rgba(229,57,53,0.12); border:1px solid rgba(229,57,53,0.32);
+  color:#E53935; display:flex; align-items:center; justify-content:center; margin-top:2px;
+}
+.coupon-promo-tag {
+  font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px;
+  color:#E53935; text-transform:uppercase; display:inline-block; margin-bottom:8px;
+}
+.coupon-promo-title {
+  font-family:'Inter',sans-serif; font-size:18px; font-weight:700; line-height:1.4;
+  color:#F5F5F5; margin:0 0 8px;
+}
+.coupon-promo-price { color:#fff; }
+.coupon-promo-was   { font-size:14px; color:#666; text-decoration:line-through; font-weight:500; margin-left:6px; }
+.coupon-promo-text {
+  font-size:13px; line-height:1.7; color:rgba(255,255,255,0.6); margin:0;
+}
+.coupon-promo-text strong { color:#F5F5F5; font-weight:600; }
+.coupon-promo-link { color:#E53935; text-decoration:none; font-weight:700; border-bottom:1px solid rgba(229,57,53,0.3); }
+.coupon-promo-link:hover { border-bottom-color:#E53935; }
+
 /* COLLECTION */
 .collection { padding:0 64px 100px; max-width:1200px; margin:0 auto; }
 .section-hdr {
@@ -213,7 +247,7 @@
   font-family:'Space Mono',monospace; font-size:10px; color:#555;
 }
 
-@media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px 32px} .stats-row{padding:0 40px 80px;grid-template-columns:repeat(2,1fr)} .collection{padding:0 40px 80px} }
+@media(max-width:960px) { .products-grid{grid-template-columns:repeat(2,1fr)} .cause{padding:60px 40px 32px} .stats-row{padding:0 40px 80px;grid-template-columns:repeat(2,1fr)} .collection{padding:0 40px 80px} .coupon-promo{padding:0 40px} }
 @media(max-width:640px) {
   /* Hero mobile — keep circle & title at full size, push badge/CTA outside the arcs */
   .hero { height:100vh; height:100svh; padding:0 20px; }
@@ -232,6 +266,10 @@
   .cause{grid-template-columns:1fr;gap:32px;padding:48px 20px 24px}
   .stats-row{padding:0 20px 60px;grid-template-columns:repeat(2,1fr);gap:10px}
   .collection{padding:0 20px 60px}
+  .coupon-promo{padding:0 20px;margin-bottom:24px}
+  .coupon-promo-inner{padding:18px 18px 18px 22px;gap:14px}
+  .coupon-promo-title{font-size:16px}
+  .coupon-promo-text{font-size:12.5px}
   .products-grid{grid-template-columns:1fr 1fr;gap:10px}
   .section-hdr{flex-direction:column;align-items:flex-start}
   .section-note{text-align:left;max-width:100%}
@@ -317,6 +355,20 @@
   <div class="stat"><span class="stat-num">4</span><span class="stat-lbl">Limited design variants</span></div>
   <div class="stat"><span class="stat-num">APR 2026</span><span class="stat-lbl">Drop Date</span></div>
   <div class="stat"><span class="stat-num" style="color:#E53935">UAE</span><span class="stat-lbl">Born here. Standing here.</span></div>
+</div>
+
+<!-- COUPON PROMO -->
+<div class="coupon-promo">
+  <div class="coupon-promo-inner">
+    <div class="coupon-promo-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V7a2 2 0 00-2-2H6a2 2 0 00-2 2v5a3 3 0 010 6v-1a2 2 0 002 2h12a2 2 0 002-2v-5a3 3 0 010-6z"/><path d="M9 9h.01M9 15h.01M15 9l-6 6"/></svg>
+    </div>
+    <div class="coupon-promo-body">
+      <span class="coupon-promo-tag">LIMITED-TIME OFFER · DOUBLE DISCOUNT</span>
+      <h3 class="coupon-promo-title">Your t-shirt is yours for <span class="coupon-promo-price">AED 97.10</span> <span class="coupon-promo-was">instead of AED 149</span></h3>
+      <p class="coupon-promo-text">And your <strong>exclusive Linkist coupon code</strong> — emailed automatically with your order — unlocks an additional limited-time discount on <a href="https://linkist.ai" target="_blank" rel="noopener" class="coupon-promo-link">Linkist.ai</a>, the world's first <strong>Personal Relationship Manager (PRM)</strong>.</p>
+    </div>
+  </div>
 </div>
 
 <!-- COLLECTION -->

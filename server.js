@@ -84,6 +84,46 @@ const CATALOG = [
 // Original (pre-sale) prices — injected into API responses as fallback when DB original_price is not set
 const ORIGINAL_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 199 };
 
+// Linkist.ai parent-site URL for coupon redemption
+const LINKIST_PARENT_URL = process.env.LINKIST_PARENT_URL || 'https://linkist.ai';
+
+// Coupon code generator — format LK-XXXX-XXXX, no ambiguous chars (no 0/O/1/I)
+function generateCouponCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const rand = (n) => Array.from({ length: n }, () =>
+    alphabet[crypto.randomInt(alphabet.length)]
+  ).join('');
+  return `LK-${rand(4)}-${rand(4)}`;
+}
+
+// Issue a coupon for first-time purchasers — UNIQUE(email) guarantees only first purchase succeeds.
+// Returns { code, alreadyHad: bool } or null if DB unavailable.
+async function issueCouponForEmail({ email, name, orderId }) {
+  if (!supabase || !email) return null;
+  const cleanEmail = String(email).toLowerCase().trim();
+  // Already has one? Don't re-issue.
+  const { data: existing } = await supabase
+    .from('coupons').select('code, sent_at').eq('email', cleanEmail).maybeSingle();
+  if (existing) return { code: existing.code, alreadyHad: true };
+
+  // Generate unique code (retry on collision; UNIQUE(code) protects DB)
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateCouponCode();
+    const { data, error } = await supabase.from('coupons').insert({
+      email: cleanEmail, code, customer_name: name || null, order_id: orderId || null,
+    }).select('code').single();
+    if (!error && data) return { code: data.code, alreadyHad: false };
+    // Email-uniqueness race: another insert beat us. Re-read.
+    if (error && /duplicate.*email/i.test(error.message || '')) {
+      const { data: row } = await supabase.from('coupons').select('code').eq('email', cleanEmail).maybeSingle();
+      if (row) return { code: row.code, alreadyHad: true };
+    }
+    // else loop and try a new code (handles UNIQUE(code) collision)
+  }
+  console.error('[coupon] Failed to issue coupon for', cleanEmail);
+  return null;
+}
+
 // ── Sort order (1=first). Admin can update sort_order column in DB; this is the catalog default ──
 // Catalog order is the display order fallback when sort_order is not set in DB.
 
@@ -288,7 +328,7 @@ app.post('/create-checkout', async (req, res) => {
       billing_address_collection: 'required',
       phone_number_collection: { enabled: true },
       shipping_address_collection: {
-        allowed_countries: ['AE', 'SA', 'KW', 'BH', 'QA', 'OM', 'IN', 'GB', 'US'],
+        allowed_countries: ['AE'],
       },
       metadata: {
         items: JSON.stringify(items.map(i => ({
@@ -314,7 +354,25 @@ app.post('/pre-checkout', async (req, res) => {
     const { items, customer: cust } = req.body;
     if (!items?.length) return res.status(400).json({ error: 'Cart is empty' });
     if (!cust?.name || !cust?.email) return res.status(400).json({ error: 'Name and email are required' });
-    if (!cust?.line1 || !cust?.city || !cust?.country) return res.status(400).json({ error: 'Shipping address is required' });
+    if (!cust?.line1 || !cust?.city) return res.status(400).json({ error: 'Shipping address is required' });
+    // Force shipping country to UAE (delivery is UAE-only)
+    cust.country = 'United Arab Emirates';
+    // If billing differs, validate the billing fields too
+    const billDiff = !!cust.billing_different;
+    let billingAddress = null;
+    if (billDiff) {
+      if (!cust.billing_line1 || !cust.billing_city) {
+        return res.status(400).json({ error: 'Billing address is required when different from shipping' });
+      }
+      billingAddress = {
+        line1: cust.billing_line1,
+        line2: cust.billing_line2 || null,
+        city: cust.billing_city,
+        state: cust.billing_state || null,
+        postal_code: cust.billing_postal || null,
+        country: cust.billing_country || 'United Arab Emirates',
+      };
+    }
 
     // Stock validation
     if (supabase) {
@@ -376,12 +434,23 @@ app.post('/pre-checkout', async (req, res) => {
       customer_phone: cust.phone || '',
       customer_id: cust.customerId || null,
       shipping_address: shippingAddress,
+      // billing address — falls back to shipping when same. Stored as JSONB.
+      billing_address: billingAddress || shippingAddress,
     };
 
     if (supabase) {
       let { data: order, error: oErr } = await supabase.from('orders').insert(orderData).select().single();
       if (oErr) {
-        const { customer_phone, ...noPhone } = orderData;
+        // Strip billing_address first if column missing, then phone if column missing
+        if (/billing_address/i.test(oErr.message || '')) {
+          const { billing_address, ...noBill } = orderData;
+          const r1 = await supabase.from('orders').insert(noBill).select().single();
+          if (!r1.error) { order = r1.data; oErr = null; }
+          else oErr = r1.error;
+        }
+      }
+      if (oErr) {
+        const { customer_phone, billing_address, ...noPhone } = orderData;
         const retry = await supabase.from('orders').insert(noPhone).select().single();
         if (!retry.error) order = retry.data;
       }
@@ -491,6 +560,24 @@ app.post('/webhook', async (req, res) => {
         const orderWithItems = { ...order, items };
         await sendBuyerEmail(orderWithItems).catch(e => console.error('Buyer email failed:', e.message));
         await sendSellerEmail(orderWithItems).catch(e => console.error('Seller email failed:', e.message));
+
+        // First-purchase coupon for linkist.ai — UNIQUE(email) ensures one-per-user
+        try {
+          const issued = await issueCouponForEmail({
+            email: order.customer_email,
+            name: order.customer_name,
+            orderId: order.id
+          });
+          if (issued && !issued.alreadyHad) {
+            await sendCouponEmail({
+              email: order.customer_email,
+              name: order.customer_name,
+              code: issued.code
+            }).catch(e => console.error('Coupon email failed:', e.message));
+          }
+        } catch (e) {
+          console.error('[coupon] issue failed:', e.message);
+        }
       }
     } catch (err) {
       console.error('Webhook processing error:', err.message);
@@ -666,6 +753,72 @@ async function sendBuyerEmail(order) {
   await sendMail(payload);
 }
 
+// First-purchase coupon email — sends an exclusive code redeemable at linkist.ai
+async function sendCouponEmail({ email, name, code }) {
+  if (!resend || !email || !code) return;
+  const firstName = (name || '').split(' ')[0] || 'there';
+  const redeemUrl = `${LINKIST_PARENT_URL}/?coupon=${encodeURIComponent(code)}`;
+  await sendMail({
+    from: 'Linkist UAE <hello@linkist.ai>',
+    to: email,
+    subject: `Your exclusive Linkist.ai coupon — ${code}`,
+    html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td><td style="background:#ffffff;height:5px;"></td>
+    <td style="background:#111111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <div style="font-family:Arial,sans-serif;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:5px;">LINKIST</div>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;text-transform:uppercase;">A thank-you from the team</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px 40px 24px;text-align:center;">
+    <div style="display:inline-block;padding:6px 14px;background:rgba(229,57,53,0.12);border:1px solid rgba(229,57,53,0.3);border-radius:100px;font-size:10px;letter-spacing:2px;color:#E53935;text-transform:uppercase;">Limited-time · For you only</div>
+    <h1 style="color:#ffffff;font-size:26px;margin:18px 0 10px;font-family:Arial,sans-serif;line-height:1.25;">Hi ${escHtml(firstName)}, here's your exclusive coupon</h1>
+    <p style="color:#888;font-size:14px;line-height:1.7;margin:0 0 26px;">As a thank-you for your first purchase, here's your personal coupon to unlock an exclusive limited-time discount on <strong style="color:#fff;">Linkist.ai</strong> — the world's first <strong style="color:#fff;">Personal Relationship Manager (PRM)</strong>.</p>
+  </td></tr></table>
+  <!-- Coupon ticket -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 28px;">
+    <div style="border:1px dashed #C8102E;border-radius:12px;background:#111;padding:28px 20px;text-align:center;">
+      <div style="font-size:10px;letter-spacing:3px;color:#666;text-transform:uppercase;margin-bottom:12px;">Your Coupon Code</div>
+      <div style="font-family:'Courier New',monospace;font-size:30px;font-weight:bold;color:#fff;letter-spacing:4px;background:#0a0a0a;padding:16px 12px;border-radius:8px;border:1px solid #1e1e1e;display:inline-block;">${escHtml(code)}</div>
+      <div style="font-size:11px;color:#777;margin-top:14px;line-height:1.6;">Bound to <strong style="color:#aaa;">${escHtml(email)}</strong><br>Redeemable on Linkist.ai when you sign up with the same email</div>
+    </div>
+  </td></tr></table>
+  <!-- CTA -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 36px;text-align:center;">
+    <a href="${redeemUrl}" style="display:inline-block;background:#E53935;color:#ffffff;font-size:14px;font-weight:bold;text-decoration:none;padding:16px 40px;border-radius:8px;letter-spacing:1px;">REDEEM ON LINKIST.AI →</a>
+    <div style="font-size:11px;color:#444;margin-top:14px;">Or visit <a href="${LINKIST_PARENT_URL}" style="color:#888;text-decoration:none;">linkist.ai</a> and apply the code at checkout.</div>
+  </td></tr></table>
+  <!-- How it works -->
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:0 40px 32px;">
+    <div style="padding:18px 22px;background:#111;border-radius:8px;border-left:3px solid #007A3D;">
+      <div style="font-size:11px;letter-spacing:2px;color:#888;text-transform:uppercase;margin-bottom:10px;">How it works</div>
+      <ol style="margin:0;padding-left:20px;color:#aaa;font-size:13px;line-height:1.9;">
+        <li>Visit <a href="${LINKIST_PARENT_URL}" style="color:#fff;">linkist.ai</a> and sign up using <strong style="color:#fff;">${escHtml(email)}</strong>.</li>
+        <li>Apply your code <strong style="color:#fff;">${escHtml(code)}</strong> at checkout.</li>
+        <li>Enjoy your exclusive limited-time discount on PRM.</li>
+      </ol>
+    </div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #1e1e1e;">
+    <div style="font-size:11px;color:#444;line-height:1.8;">Code is valid for one Linkist.ai account · One use only · Bound to your email</div>
+    <div style="font-size:11px;color:#666;margin-top:8px;"><a href="https://linkist.ai" style="color:#888;text-decoration:none;">linkist.ai</a> · #WeStandWithUAE · #BornInTheUAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#007A3D;height:4px;"></td><td style="background:#111111;height:4px;"></td>
+    <td style="background:#ffffff;height:4px;"></td><td style="background:#C8102E;height:4px;"></td>
+  </tr></table>
+</div></body></html>`
+  });
+  // Mark sent
+  if (supabase) {
+    await supabase.from('coupons')
+      .update({ sent_at: new Date().toISOString() })
+      .eq('email', String(email).toLowerCase().trim());
+  }
+}
+
 async function sendSellerEmail(order) {
   if (!resend) return;
   const adminRecipients = ['linkistai@gmail.com'];
@@ -760,51 +913,78 @@ async function generateInvoiceBuffer(order, items) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // Dark header band
+    const fmt = v => 'AED ' + Number(v || 0).toFixed(2);
+    const orderId = (order.id || '').slice(0, 8).toUpperCase();
+    const totalMinor = order.total_amount || 0;
+    const totalMajor = totalMinor / 100;
+    const subtotalMajor = items.reduce((s, i) => s + (Number(i.unit_price) || 0) * (Number(i.quantity) || 0), 0);
+    const status = (order.status || 'pending').toUpperCase();
+
+    // Parse JSON address fields if needed
+    const parseAddr = a => !a ? null : (typeof a === 'string' ? JSON.parse(a) : a);
+    const ship = parseAddr(order.shipping_address);
+    const bill = parseAddr(order.billing_address) || ship;
+    const sameAddr = ship && bill &&
+      ['line1','line2','city','state','postal_code','country'].every(k => (ship[k] || '') === (bill[k] || ''));
+
+    // ── Header ───────────────────────────────────────────────
     doc.rect(0, 0, 595, 75).fill('#0a0a0a');
-    // UAE flag stripe at very top
     doc.rect(0, 0, 595, 3).fill('#C8102E');
 
-    // Logo image (white on dark background) — fallback to text if file missing
     const logoPath = path.join(__dirname, 'images', 'linkist-white.png');
-    try {
-      doc.image(logoPath, 28, 16, { height: 38 });
-    } catch {
-      doc.fontSize(22).font('Helvetica-Bold').fillColor('#ffffff').text('LINKIST', 28, 22);
-    }
+    try { doc.image(logoPath, 28, 16, { height: 38 }); }
+    catch { doc.fontSize(22).font('Helvetica-Bold').fillColor('#ffffff').text('LINKIST', 28, 22); }
     doc.fontSize(8).font('Helvetica').fillColor('#666666').text('I NEVER LEFT · UAE · linkist.ai', 28, 58);
 
-    // Invoice label (right side of dark header)
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#ffffff').text('INVOICE', 350, 18, { align: 'right', width: 215 });
-    doc.fontSize(9).font('Helvetica').fillColor('#888888').text(`#${(order.id || '').slice(0,8).toUpperCase()}`, 350, 44, { align: 'right', width: 215 });
-    doc.text(`${new Date(order.created_at || Date.now()).toLocaleDateString('en-GB')}`, 350, 56, { align: 'right', width: 215 });
+    doc.fontSize(9).font('Helvetica').fillColor('#888888').text(`#${orderId}`, 350, 44, { align: 'right', width: 215 });
+    doc.text(new Date(order.created_at || Date.now()).toLocaleDateString('en-GB'), 350, 56, { align: 'right', width: 215 });
 
-    // Divider below header
     doc.moveTo(0, 75).lineTo(595, 75).lineWidth(2).stroke('#C8102E');
 
-    // Bill to
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, 95);
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, 108);
-    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, 123);
-    let billY = 137;
-    if (order.customer_phone) {
-      doc.text(order.customer_phone, 50, billY, { width: 250 });
-      billY += 14;
-    }
-    if (order.shipping_address) {
-      const addr = typeof order.shipping_address === 'string' ? JSON.parse(order.shipping_address) : order.shipping_address;
-      const lines = [addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
-      doc.text(lines.join(', '), 50, billY, { width: 250 });
+    // ── Meta strip — Invoice Date · Status · Payment ─────────
+    let metaY = 92;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888');
+    doc.text('INVOICE DATE', 50, metaY);
+    doc.text('STATUS', 230, metaY);
+    doc.text('PAYMENT', 410, metaY);
+    doc.fontSize(10).font('Helvetica').fillColor('#000000');
+    doc.text(new Date(order.created_at || Date.now()).toLocaleDateString('en-GB'), 50, metaY + 12);
+    doc.text(status, 230, metaY + 12);
+    doc.text(order.stripe_session_id ? 'Card · Stripe' : '—', 410, metaY + 12);
+
+    // ── BILL TO + SHIP TO blocks ─────────────────────────────
+    const blockY = 140;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('BILL TO', 50, blockY);
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 50, blockY + 13);
+    doc.fontSize(9).font('Helvetica').fillColor('#555555').text(order.customer_email || '', 50, blockY + 28);
+    let yB = blockY + 42;
+    if (order.customer_phone) { doc.text(order.customer_phone, 50, yB, { width: 240 }); yB += 12; }
+    if (bill) {
+      const lines = [bill.line1, bill.line2, bill.city, bill.state, bill.postal_code, bill.country].filter(Boolean);
+      doc.text(lines.join(', '), 50, yB, { width: 240 });
     }
 
-    // Items table
-    const tY = 200;
+    // SHIP TO (right column)
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('SHIP TO', 310, blockY);
+    if (sameAddr) {
+      doc.fontSize(10).font('Helvetica-Oblique').fillColor('#777777')
+        .text('Same as billing address', 310, blockY + 13, { width: 240 });
+    } else if (ship) {
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#000000').text(order.customer_name || 'Customer', 310, blockY + 13);
+      let yS = blockY + 28;
+      const lines = [ship.line1, ship.line2, ship.city, ship.state, ship.postal_code, ship.country].filter(Boolean);
+      doc.fontSize(9).font('Helvetica').fillColor('#555555').text(lines.join(', '), 310, yS, { width: 240 });
+    }
+
+    // ── Items table ──────────────────────────────────────────
+    const tY = 240;
     doc.rect(50, tY, 495, 22).fill('#f0f0f0');
     doc.fontSize(8).font('Helvetica-Bold').fillColor('#333333');
     doc.text('ITEM', 60, tY + 7);
     doc.text('SIZE', 290, tY + 7);
-    doc.text('QTY', 350, tY + 7);
-    doc.text('UNIT', 400, tY + 7);
+    doc.text('QTY', 340, tY + 7);
+    doc.text('UNIT', 390, tY + 7);
     doc.text('SUBTOTAL', 470, tY + 7);
 
     let rowY = tY + 30;
@@ -812,26 +992,42 @@ async function generateInvoiceBuffer(order, items) {
       if (i % 2 === 0) doc.rect(50, rowY - 5, 495, 22).fill('#fafafa');
       doc.fontSize(10).font('Helvetica').fillColor('#000000').text(item.product_name || '', 60, rowY, { width: 220 });
       doc.text(item.size || '', 290, rowY);
-      doc.text(String(item.quantity), 350, rowY);
-      doc.text(`AED ${item.unit_price}`, 400, rowY);
-      doc.text(`AED ${(item.unit_price || 0) * (item.quantity || 0)}`, 470, rowY);
+      doc.text(String(item.quantity), 340, rowY);
+      doc.text(fmt(item.unit_price), 390, rowY);
+      doc.text(fmt((Number(item.unit_price) || 0) * (Number(item.quantity) || 0)), 470, rowY);
       rowY += 26;
     });
 
-    // Total line
-    rowY += 6;
-    doc.moveTo(50, rowY).lineTo(545, rowY).lineWidth(2).stroke('#C8102E');
-    rowY += 12;
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#000000').text('TOTAL', 390, rowY);
-    doc.text(`AED ${Math.round((order.total_amount || 0) / 100)}`, 460, rowY);
+    // ── Totals breakdown ────────────────────────────────────
+    rowY += 8;
+    doc.moveTo(310, rowY).lineTo(545, rowY).lineWidth(0.5).stroke('#cccccc');
+    rowY += 10;
+    const totalsRow = (label, val, bold = false) => {
+      doc.fontSize(bold ? 12 : 9).font(bold ? 'Helvetica-Bold' : 'Helvetica').fillColor(bold ? '#000000' : '#555555');
+      doc.text(label, 320, rowY);
+      doc.text(val, 470, rowY, { width: 75, align: 'right' });
+      rowY += bold ? 18 : 14;
+    };
+    totalsRow('Subtotal', fmt(subtotalMajor));
+    totalsRow('Shipping', 'Free');
+    totalsRow('Tax / VAT', 'Included');
+    rowY += 4;
+    doc.moveTo(310, rowY).lineTo(545, rowY).lineWidth(2).stroke('#C8102E');
+    rowY += 10;
+    totalsRow('TOTAL', fmt(totalMajor), true);
 
-    // Footer
+    // ── Notes ────────────────────────────────────────────────
+    const notesY = Math.max(rowY + 30, 660);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#888888').text('NOTES', 50, notesY);
+    doc.fontSize(9).font('Helvetica').fillColor('#555555')
+      .text('Thank you for your order. 100% of proceeds support UAE community relief efforts. Limited April 2026 drop. Please retain this invoice for your records. For any queries email hello@linkist.ai.', 50, notesY + 13, { width: 495, align: 'left' });
+
+    // ── Footer ───────────────────────────────────────────────
     doc.moveTo(50, 745).lineTo(545, 745).lineWidth(0.5).stroke('#cccccc');
     doc.fontSize(8).font('Helvetica').fillColor('#999999')
-      .text('100% of proceeds go to UAE community relief · Thank you for standing with the UAE', 50, 755, { align: 'center', width: 495 })
-      .text('linkist.ai  ·  #WeStandWithUAE  ·  #borninUAE', 50, 768, { align: 'center', width: 495 });
+      .text('Linkist · linkist.ai · hello@linkist.ai', 50, 755, { align: 'center', width: 495 })
+      .text('#WeStandWithUAE · #BornInTheUAE · I Never Left', 50, 768, { align: 'center', width: 495 });
 
-    // Bottom flag bar
     doc.rect(0, 828, 595, 5).fill('#007A3D');
     doc.rect(0, 833, 595, 4).fill('#C8102E');
 
@@ -1589,13 +1785,61 @@ app.post('/admin/images/upload', requireAdmin, upload.array('images', 10), (req,
   res.status(400).json({ error: err.message });
 });
 
+// Build a unified customer list from BOTH:
+//   1. registered customers (from `customers` table)
+//   2. guest buyers (orders with email but no customer_id)
+// Then enrich each row with coupon code from `coupons` table (keyed by email).
+async function loadCustomersWithCoupons() {
+  if (!supabase) return [];
+  const [{ data: regs }, { data: orders }, { data: coupons }] = await Promise.all([
+    supabase.from('customers').select('id, name, email, phone, created_at'),
+    supabase.from('orders').select('customer_name, customer_email, customer_phone, created_at, customer_id'),
+    supabase.from('coupons').select('email, code, sent_at'),
+  ]);
+
+  const couponByEmail = {};
+  (coupons || []).forEach(c => { if (c.email) couponByEmail[c.email.toLowerCase()] = c; });
+
+  const byEmail = {};
+  (regs || []).forEach(r => {
+    if (!r.email) return;
+    byEmail[r.email.toLowerCase()] = {
+      name: r.name || '', email: r.email, phone: r.phone || '',
+      created_at: r.created_at, registered: true,
+    };
+  });
+  // Pick up guest buyers whose email isn't in customers table yet
+  (orders || []).forEach(o => {
+    if (!o.customer_email) return;
+    const k = o.customer_email.toLowerCase();
+    if (!byEmail[k]) {
+      byEmail[k] = {
+        name: o.customer_name || '', email: o.customer_email, phone: o.customer_phone || '',
+        created_at: o.created_at, registered: false,
+      };
+    } else if (!byEmail[k].phone && o.customer_phone) {
+      byEmail[k].phone = o.customer_phone;
+    }
+  });
+
+  const rows = Object.values(byEmail).map(r => {
+    const c = couponByEmail[r.email.toLowerCase()];
+    return {
+      ...r,
+      coupon_code: c?.code || '',
+      coupon_sent_at: c?.sent_at || null,
+    };
+  });
+  // Sort newest first
+  rows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  return rows;
+}
+
 app.get('/admin/customers', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-    const { data: customers, error } = await supabase.from('customers')
-      .select('id, name, email, phone, created_at').order('created_at', { ascending: false });
-    if (error) throw error;
-    res.json(customers || []);
+    const rows = await loadCustomersWithCoupons();
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1604,17 +1848,39 @@ app.get('/admin/customers', requireAdmin, async (req, res) => {
 app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
-    const { data: customers, error } = await supabase.from('customers')
-      .select('name, email, phone').order('created_at', { ascending: false });
-    if (error) throw error;
-    const rows = ['Name,Email,Phone'];
-    (customers || []).forEach(c => {
-      const row = [c.name, c.email, c.phone || ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-      rows.push(row);
+    const rows = await loadCustomersWithCoupons();
+    const csv = ['Name,Email,Phone,Coupon Code,Coupon Sent,Registered,Joined'];
+    rows.forEach(c => {
+      const cells = [
+        c.name || '',
+        c.email || '',
+        c.phone || '',
+        c.coupon_code || '',
+        c.coupon_sent_at ? new Date(c.coupon_sent_at).toISOString() : '',
+        c.registered ? 'Yes' : 'Guest',
+        c.created_at ? new Date(c.created_at).toISOString() : '',
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      csv.push(cells);
     });
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=customers-${new Date().toISOString().slice(0,10)}.csv`);
-    res.send(rows.join('\r\n'));
+    res.send(csv.join('\r\n'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual coupon resend (admin tool — useful if email failed first time)
+app.post('/admin/customers/resend-coupon', requireAdmin, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email required' });
+    const cleanEmail = email.toLowerCase().trim();
+    const { data: row } = await supabase.from('coupons').select('code, customer_name').eq('email', cleanEmail).maybeSingle();
+    if (!row) return res.status(404).json({ error: 'No coupon found for this email' });
+    await sendCouponEmail({ email: cleanEmail, name: row.customer_name, code: row.code });
+    res.json({ ok: true, code: row.code });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -916,19 +916,50 @@ async function loadCustomers() {
   try {
     const customers = await api('/admin/customers');
     if (!customers.length) { body.innerHTML = '<div class="loading">No customers yet</div>'; return; }
-    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Joined</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Coupon Code</th><th>Sent</th><th>Joined</th><th></th></tr></thead><tbody>`;
     customers.forEach(c => {
       const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—';
+      const sent = c.coupon_sent_at ? new Date(c.coupon_sent_at).toLocaleDateString('en-GB') : '—';
+      const couponCell = c.coupon_code
+        ? `<code style="font-family:'Space Mono',monospace;font-size:11px;background:#0a0a0a;color:#F5F5F5;padding:3px 8px;border-radius:4px;border:1px solid #2a2a2a;letter-spacing:1px;">${escHtml(c.coupon_code)}</code>`
+        : '<span style="color:#444;font-size:11px;">—</span>';
+      const resendBtn = c.coupon_code
+        ? `<button onclick="resendCoupon('${escHtml(c.email)}', this)" style="background:transparent;border:1px solid #2a2a2a;color:#aaa;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;">Resend</button>`
+        : '';
       html += `<tr>
         <td>${escHtml(c.name || '—')}</td>
         <td style="font-size:12px;color:#888;">${escHtml(c.email || '')}</td>
         <td style="font-size:12px;color:#888;">${escHtml(c.phone || '—')}</td>
+        <td style="font-size:11px;color:${c.registered ? '#007A3D' : '#888'};">${c.registered ? 'Member' : 'Guest'}</td>
+        <td>${couponCell}</td>
+        <td style="font-size:11px;color:#666;">${sent}</td>
         <td style="font-size:12px;color:#555;">${date}</td>
+        <td>${resendBtn}</td>
       </tr>`;
     });
     html += '</tbody></table>';
     body.innerHTML = html;
   } catch(e) { body.innerHTML = '<div class="loading">Error: ' + e.message + '</div>'; }
+}
+
+async function resendCoupon(email, btn) {
+  const original = btn.textContent;
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  try {
+    const res = await fetch('/admin/customers/resend-coupon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed');
+    btn.textContent = 'Sent ✓'; btn.style.color = '#007A3D'; btn.style.borderColor = '#007A3D';
+    setTimeout(() => { btn.textContent = original; btn.style.color = ''; btn.style.borderColor = ''; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = 'Failed'; btn.style.color = '#E53935';
+    setTimeout(() => { btn.textContent = original; btn.style.color = ''; btn.disabled = false; }, 2500);
+    alert('Resend failed: ' + e.message);
+  }
 }
 
 async function downloadCustomerCSV() {
