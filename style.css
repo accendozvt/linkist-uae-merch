@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
 :root {
   --black:  #0a0a0a;
@@ -19,8 +19,27 @@ body {
   background: var(--black);
   color: var(--white);
   font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
   overflow-x: hidden;
   min-height: 100vh;
+}
+
+/* ── Display font (Inter replaces Bebas Neue) ── */
+/* All elements that used Bebas Neue get Inter 800 + uppercase + tight tracking */
+.product-name, .section-title, .cause-title, .collection-title,
+.price-main, .pcard-price, .product-price,
+.stat-num, .notify-modal h3,
+.ht-i, .ht-never, .ht-left,
+h1.product-name, h2.section-title,
+.auth-logo-text {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+/* Keep uppercase for display headings */
+.product-name, .section-title, .cause-title, .collection-title,
+.ht-i, .ht-never, .ht-left {
+  text-transform: uppercase;
 }
 
 /* ── NAV ── */

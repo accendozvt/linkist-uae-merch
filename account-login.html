@@ -163,6 +163,14 @@
       <button class="btn-primary auth-submit" id="login-btn" onclick="doLogin()">Sign In</button>
     </div>
 
+    <!-- Email verification sent screen -->
+    <div class="auth-form" id="form-verify-sent" style="text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">&#9993;</div>
+      <h2 style="font-family:'Inter',sans-serif;font-size:22px;font-weight:800;margin-bottom:10px;">Check your inbox</h2>
+      <p style="font-size:14px;color:#888;line-height:1.7;margin-bottom:20px;">We sent a verification link to <strong id="verify-email-sent-to" style="color:#fff;"></strong>.<br>Click the link in the email to activate your account.</p>
+      <p style="font-size:12px;color:#555;">Didn't get it? Check your spam folder. The link expires in 24 hours.</p>
+    </div>
+
     <!-- Register Form -->
     <div class="auth-form" id="form-register">
       <div class="auth-error" id="register-error"></div>
@@ -290,23 +298,54 @@ async function doRegister() {
   btn.textContent = 'Creating account...';
   btn.disabled = true;
 
+  // Detect if user came from checkout flow
+  const returnTo = (redirectTo === 'checkout.html' || localStorage.getItem('pendingCheckout')) ? 'checkout' : 'home';
+
   try {
     const res = await fetch('/customer/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ name, email, password, returnTo })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');
-    localStorage.setItem('customer_token', data.token);
-    await linkGuestOrder(data.token);
-    window.location.href = redirectTo;
+
+    if (data.verification_sent) {
+      // Show "check your email" screen
+      document.getElementById('verify-email-sent-to').textContent = data.email;
+      document.getElementById('tab-login-btn').style.display = 'none';
+      document.getElementById('tab-register-btn').style.display = 'none';
+      ['form-login','form-register'].forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById('form-verify-sent').classList.add('active');
+      return;
+    }
+
+    // Fallback (if verification is disabled): direct login
+    if (data.token) {
+      localStorage.setItem('customer_token', data.token);
+      await linkGuestOrder(data.token);
+      window.location.href = redirectTo;
+    }
   } catch (err) {
     errEl.textContent = err.message;
     errEl.style.display = 'block';
     btn.textContent = 'Create Account';
     btn.disabled = false;
   }
+}
+
+// Show error from URL params (e.g., from verify redirect)
+const urlError = urlParams.get('error');
+if (urlError) {
+  const messages = {
+    invalid_token: 'Invalid or expired verification link. Please register again.',
+    token_expired: 'Verification link has expired. Please register again.',
+    db_error: 'A server error occurred. Please try again.',
+    server_error: 'A server error occurred. Please try again.'
+  };
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = messages[urlError] || 'An error occurred.';
+  errEl.style.display = 'block';
 }
 </script>
 </body>

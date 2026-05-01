@@ -22,18 +22,53 @@
 }
 .thumb.active { border-color:#C8102E; }
 .thumb:hover { border-color:rgba(255,255,255,0.35); }
+
+/* Product info */
 .product-info { display:flex; flex-direction:column; gap:24px; }
-.product-tag { font-family:'Space Mono',monospace; font-size:10px; color:#444; letter-spacing:0.12em; text-transform:uppercase; }
-.product-name { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,64px); line-height:1; }
+.product-tag {
+  font-family:'Space Mono',monospace; font-size:11px; color:#888;
+  letter-spacing:0.14em; text-transform:uppercase;
+}
+.product-name { font-family:'Inter',sans-serif; font-size:clamp(40px,5vw,64px); line-height:1; }
 .product-tagline { font-size:15px; font-weight:300; color:rgba(255,255,255,0.55); line-height:1.6; }
-.product-price { line-height:1; display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-.price-was-lg { font-family:'DM Sans',sans-serif; font-size:18px; color:#555; text-decoration:line-through; }
-.price-sale-lg { font-family:'Bebas Neue',sans-serif; font-size:44px; color:#E53935; }
-.price-sale-lg .aed { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#888; }
-.price-only-lg { font-family:'Bebas Neue',sans-serif; font-size:44px; }
-.price-only-lg .aed { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#555; }
+
+/* Price */
+.product-price-wrap { display:flex; flex-direction:column; gap:4px; }
+.price-was-lg {
+  font-family:'DM Sans',sans-serif; font-size:16px; color:#555;
+  text-decoration:line-through; letter-spacing:0.02em;
+}
+.price-main {
+  font-family:'Inter',sans-serif; font-size:48px; color:#E53935; line-height:1;
+  letter-spacing:0.02em;
+}
+.price-main.no-sale { color:var(--white); }
+.free-shipping {
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:'Space Mono',monospace; font-size:10px; color:#007A3D;
+  letter-spacing:0.08em; margin-top:2px;
+}
+
+/* Divider */
 .product-divider { border:none; border-top:1px solid #1a1a1a; }
 .label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#555; text-transform:uppercase; margin-bottom:10px; display:block; }
+
+/* Sizes */
+.sz.sold-out {
+  opacity:0.45; text-decoration:line-through; border-color:#1e1e1e;
+  cursor:pointer !important; pointer-events:auto !important;
+}
+.sz.sold-out:hover { opacity:0.8; border-color:#C8102E; color:#C8102E; }
+
+/* Notify link */
+.notify-size-link {
+  display:none; align-items:center; gap:6px;
+  font-family:'Space Mono',monospace; font-size:11px; color:#C8102E;
+  text-decoration:none; margin-top:10px; letter-spacing:0.06em;
+  cursor:pointer; transition:opacity 0.2s;
+}
+.notify-size-link:hover { opacity:0.75; }
+
 .product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
 .product-desc strong { color:#F5F5F5; font-weight:500; }
 .details-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
@@ -41,12 +76,6 @@
 .details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
 .action-row { display:flex; gap:10px; align-items:center; }
 .size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:6px; }
-.notify-size-link {
-  display:none; font-family:'Space Mono',monospace; font-size:10px; color:#888;
-  text-decoration:none; margin-top:8px; letter-spacing:0.06em; cursor:pointer;
-  transition:color 0.2s;
-}
-.notify-size-link:hover { color:#fff; }
 .view-cart-btn {
   display:none; width:100%; margin-top:10px;
   background:transparent; border:1px solid var(--white); color:var(--white);
@@ -58,13 +87,16 @@
 .other-products { padding:0 64px 80px; max-width:1100px; margin:0 auto; }
 .other-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:28px; }
 .other-grid .pcard-tag { color:#666; }
+
+/* Notify modal */
 .notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
 .notify-modal-overlay.open { display:flex; }
 .notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; position:relative; }
-.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal h3 { font-family:'Inter',sans-serif; font-size:28px; margin:0 0 8px; }
 .notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
 .notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
 .notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; }
+
 @media(max-width:768px) {
   .product-wrap{grid-template-columns:1fr;gap:32px;padding:80px 20px 48px}
   .product-img-col{position:relative;top:0}
@@ -98,7 +130,9 @@
       <p class="product-tagline" id="prod-tagline"></p>
     </div>
 
-    <div class="product-price" id="prod-price"></div>
+    <div class="product-price-wrap" id="prod-price-wrap">
+      <!-- injected by JS -->
+    </div>
 
     <hr class="product-divider">
 
@@ -106,13 +140,16 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
-      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when a size is back in stock</a>
+      <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Notify me when a size is back in stock
+      </a>
     </div>
 
     <div>
       <span class="label">Quantity</span>
       <div class="qty-wrap">
-        <button class="qty-btn" id="qty-minus">−</button>
+        <button class="qty-btn" id="qty-minus">&minus;</button>
         <span class="qty-num" id="qty-num">1</span>
         <button class="qty-btn" id="qty-plus">+</button>
       </div>
@@ -121,7 +158,7 @@
     <div class="action-row">
       <button class="btn-primary full" id="atc-btn">Add to Cart</button>
     </div>
-    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART →</a>
+    <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART &rarr;</a>
 
     <hr class="product-divider">
 
@@ -140,7 +177,7 @@
 <!-- OTHER PRODUCTS -->
 <div class="other-products">
   <div class="section-hdr">
-    <h2 class="section-title" style="font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,4vw,48px);line-height:1;">More From The Collection</h2>
+    <h2 class="section-title" style="font-family:'Inter',sans-serif;font-size:clamp(28px,4vw,48px);line-height:1;">More From The Collection</h2>
   </div>
   <div class="other-grid" id="other-grid"></div>
 </div>
@@ -150,7 +187,7 @@
 <!-- NOTIFY MODAL -->
 <div class="notify-modal-overlay" id="notify-modal">
   <div class="notify-modal">
-    <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
+    <button class="notify-modal-close" onclick="closeNotifyModal()">&times;</button>
     <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;margin-bottom:2px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify Me</h3>
     <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
     <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
@@ -181,11 +218,14 @@ fetch('/products')
   })
   .catch(() => initProduct());
 
+function fmtPrice(p) {
+  return 'AED ' + parseFloat(p).toFixed(2);
+}
+
 function initProduct() {
   const p = _product;
   document.title = p.name + ' — I Never Left · Linkist';
 
-  // Main image
   const mainImg = document.getElementById('prod-img');
   const baseImg = p.image_url || p.image || '';
   mainImg.src = baseImg;
@@ -195,14 +235,17 @@ function initProduct() {
   document.getElementById('prod-name').textContent = p.name;
   document.getElementById('prod-tagline').textContent = p.tagline || '';
 
-  // Sale price display
+  // Price display
   const origPrice = p.originalPrice || p.original_price;
-  const priceEl = document.getElementById('prod-price');
-  if (origPrice) {
-    priceEl.innerHTML = `<span class="price-was-lg">${origPrice} AED</span><span class="price-sale-lg">${p.price} <span class="aed">AED</span></span>`;
-  } else {
-    priceEl.innerHTML = `<span class="price-only-lg">${p.price} <span class="aed">AED</span></span>`;
-  }
+  const priceWrap = document.getElementById('prod-price-wrap');
+  priceWrap.innerHTML = (origPrice
+    ? `<div class="price-was-lg">${fmtPrice(origPrice)}</div>
+       <div class="price-main">${fmtPrice(p.price)}</div>`
+    : `<div class="price-main no-sale">${fmtPrice(p.price)}</div>`
+  ) + `<div class="free-shipping">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    Free Shipping
+  </div>`;
 
   document.getElementById('prod-desc').innerHTML = p.description || '';
   document.getElementById('prod-details').innerHTML = (p.details || []).map(d => '<li>' + d + '</li>').join('');
@@ -226,7 +269,7 @@ function initProduct() {
     });
   }
 
-  // Build size grid with stock awareness
+  // Build size grid
   initSizesFromAPI();
 
   // Other products
@@ -234,18 +277,18 @@ function initProduct() {
   document.getElementById('other-grid').innerHTML = others.map(op => {
     const orig = op.originalPrice || op.original_price;
     const priceHtml = orig
-      ? `<span style="font-size:12px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${orig} AED</span> <span style="color:#E53935;">${op.price} <span style="font-size:11px;color:#888;font-family:'DM Sans',sans-serif;">AED</span></span>`
-      : `${op.price} <span style="font-size:13px;color:#555;font-family:'DM Sans',sans-serif;">AED</span>`;
+      ? `<div style="font-size:11px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${fmtPrice(orig)}</div><div style="color:#E53935;font-family:'Inter',sans-serif;font-size:22px;">${fmtPrice(op.price)}</div>`
+      : `<div style="font-family:'Inter',sans-serif;font-size:22px;">${fmtPrice(op.price)}</div>`;
     return `
     <a href="${op.page}" class="pcard" style="text-decoration:none;color:inherit;">
       <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
         <img src="${op.image}" alt="${op.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
         ${op.badge ? '<div class="pcard-badge">' + op.badge + '</div>' : ''}
       </div>
-      <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:#111;">
+      <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:6px;background:#111;">
         <div class="pcard-name">${op.name}</div>
         <div class="pcard-tag" style="color:#666;">${op.tag || ''}</div>
-        <div class="pcard-price" style="font-family:'Bebas Neue',sans-serif;font-size:22px;">${priceHtml}</div>
+        ${priceHtml}
       </div>
     </a>`;
   }).join('');
@@ -259,17 +302,18 @@ async function initSizesFromAPI() {
     const res = await fetch('/products');
     const products = await res.json();
     const found = products.find(p => p.id === PRODUCT_ID);
-    if (found?.stock) stockData = found.stock;
-  } catch(e) { /* no stock data — all sizes show as available */ }
+    if (found && found.stock) stockData = found.stock;
+  } catch(e) {}
 
   sizeGrid.innerHTML = SIZES.map(s => {
-    const qty = stockData ? (stockData[s] ?? 0) : null;
-    const isSoldOut = stockData !== null && qty === 0;
-    const isLow = !isSoldOut && qty !== null && qty > 0 && qty <= 4;
-    return `<button class="sz${isSoldOut ? ' sold-out' : ''}" data-size="${s}"${isSoldOut ? ' disabled' : ''}${isLow ? ` data-stock-warn="Only ${qty} left"` : ''}>${s}</button>`;
+    const q = stockData ? (stockData[s] ?? 0) : null;
+    const isSoldOut = stockData !== null && q === 0;
+    const isLow = !isSoldOut && q !== null && q > 0 && q <= 4;
+    // NOT using `disabled` — sold-out sizes are still clickable to trigger notify
+    return `<button class="sz${isSoldOut ? ' sold-out' : ''}" data-size="${s}" data-sold-out="${isSoldOut}"${isLow ? ` data-stock-warn="Only ${q} left"` : ''}>${s}</button>`;
   }).join('');
 
-  // Add stock-warn tooltip styles
+  // Low stock tooltip
   if (stockData && SIZES.some(s => { const q = stockData[s] ?? 0; return q > 0 && q <= 4; })) {
     const style = document.createElement('style');
     style.textContent = `.sz[data-stock-warn]{position:relative;}.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;}.sz[data-stock-warn]:hover::after{opacity:1;}`;
@@ -278,12 +322,17 @@ async function initSizesFromAPI() {
 
   // Show notify link if any size is sold out
   if (stockData && SIZES.some(s => (stockData[s] ?? 0) === 0)) {
-    document.getElementById('notify-size-link').style.display = 'block';
+    const link = document.getElementById('notify-size-link');
+    link.style.display = 'flex';
   }
 
-  // Bind click on available sizes
-  sizeGrid.querySelectorAll('.sz:not([disabled])').forEach(btn => {
+  // Click: sold-out → open notify modal for THAT size; available → select it
+  sizeGrid.querySelectorAll('.sz').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (btn.dataset.soldOut === 'true') {
+        openNotifyModal(PRODUCT_ID, _productName, btn.dataset.size);
+        return;
+      }
       sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       selectedSize = btn.dataset.size;
@@ -320,7 +369,7 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
   document.getElementById('view-cart-btn').style.display = 'block';
-  showToast(_product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
+  showToast(_product.name + ' (' + selectedSize + ' \xd7 ' + qty + ') added!');
 });
 
 // Notify modal

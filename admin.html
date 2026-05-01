@@ -60,7 +60,7 @@ body { background:#0a0a0a; color:#F5F5F5; font-family:'DM Sans',sans-serif; }
   background:#111; border:1px solid #1e1e1e; border-radius:12px; padding:24px;
 }
 .stat-label { font-size:10px; color:#555; letter-spacing:2px; text-transform:uppercase; font-family:'Space Mono',monospace; margin-bottom:8px; }
-.stat-val { font-family:'Bebas Neue',sans-serif; font-size:40px; line-height:1; }
+.stat-val { font-family:'Inter',sans-serif; font-size:40px; line-height:1; }
 .stat-sub { font-size:11px; color:#444; margin-top:4px; }
 
 /* Tables */
@@ -118,7 +118,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
 
 /* Section header */
 .section-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-.section-title-sm { font-family:'Bebas Neue',sans-serif; font-size:28px; }
+.section-title-sm { font-family:'Inter',sans-serif; font-size:28px; }
 
 /* Product/stock grid */
 .product-admin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; margin-bottom:32px; }
@@ -130,7 +130,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
 .product-admin-body { padding:16px; }
 .product-admin-name { font-weight:700; font-size:14px; margin-bottom:4px; }
 .product-admin-tag { font-family:'Space Mono',monospace; font-size:9px; color:#555; letter-spacing:1px; margin-bottom:12px; }
-.product-admin-price { font-family:'Bebas Neue',sans-serif; font-size:24px; margin-bottom:12px; }
+.product-admin-price { font-family:'Inter',sans-serif; font-size:24px; margin-bottom:12px; }
 .product-admin-actions { display:flex; gap:8px; }
 .action-btn {
   background:#0a0a0a; border:1px solid #2a2a2a; border-radius:6px;
@@ -166,7 +166,7 @@ tr:hover td { background:rgba(255,255,255,0.02); }
   background:#111; border:1px solid #1e1e1e; border-radius:16px;
   padding:32px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto;
 }
-.modal-title { font-family:'Bebas Neue',sans-serif; font-size:28px; margin-bottom:24px; }
+.modal-title { font-family:'Inter',sans-serif; font-size:28px; margin-bottom:24px; }
 .modal-footer { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
 
 /* Recent orders */
@@ -341,6 +341,7 @@ textarea:focus { border-color:rgba(255,255,255,0.3); outline:none; }
     <div class="input-group"><label>Tagline</label><input type="text" id="pm-tagline" placeholder="Short tagline"/></div>
     <div class="input-group"><label>Price (AED)</label><input type="number" id="pm-price" placeholder="149"/></div>
     <div class="input-group"><label>Badge (optional)</label><input type="text" id="pm-badge" placeholder="BESTSELLER"/></div>
+    <div class="input-group"><label>Sort Order (1=first, lower=earlier)</label><input type="number" id="pm-sort-order" placeholder="1" min="1" max="99"/></div>
     <div class="input-group">
       <label>Image URL</label>
       <input type="text" id="pm-image" placeholder="https://... or pick below"/>
@@ -536,7 +537,7 @@ function renderOrdersTable(orders, expandable) {
         ${o.customer_phone ? `<div style="font-size:11px;color:#888;">${escHtml(o.customer_phone)}</div>` : ''}
       </td>
       <td style="font-size:12px;color:#888;">${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
-      <td style="font-family:'Bebas Neue',sans-serif;font-size:18px;">${total} <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">AED</span></td>
+      <td style="font-family:'Inter',sans-serif;font-size:18px;">${total} <span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#555;">AED</span></td>
       <td><span class="badge badge-${o.status}">${o.status}</span></td>
       <td style="font-size:12px;color:#555;">${date}</td>
       <td><a href="/invoice/${o.id}" target="_blank" style="font-size:11px;color:#635BFF;text-decoration:none;">PDF</a></td>
@@ -737,6 +738,7 @@ function openProductModal(productId) {
     document.getElementById('pm-tagline').value = p.tagline || '';
     document.getElementById('pm-price').value = p.price || '';
     document.getElementById('pm-badge').value = p.badge || '';
+    document.getElementById('pm-sort-order').value = p.sort_order || '';
     document.getElementById('pm-image').value = p.image_url || p.image || '';
     const imagesArr = Array.isArray(p.images) ? p.images : [];
     document.getElementById('pm-images').value = imagesArr.join('\n');
@@ -747,7 +749,7 @@ function openProductModal(productId) {
     document.getElementById('product-modal-title').textContent = 'Add Product';
     document.getElementById('product-modal-id').value = '';
     document.getElementById('pm-id').disabled = false;
-    ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
+    ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-sort-order','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
       document.getElementById(id).value = '';
     });
   }
@@ -764,7 +766,7 @@ function openProductModal(productId) {
 
 function closeProductModal() {
   document.getElementById('product-modal').classList.remove('open');
-  ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
+  ['pm-id','pm-name','pm-tag','pm-tagline','pm-price','pm-badge','pm-sort-order','pm-image','pm-images','pm-desc','pm-details'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -780,6 +782,7 @@ async function saveProduct() {
     tagline: document.getElementById('pm-tagline').value.trim(),
     price: parseFloat(document.getElementById('pm-price').value),
     badge: document.getElementById('pm-badge').value.trim() || null,
+    sort_order: parseInt(document.getElementById('pm-sort-order').value) || null,
     image: document.getElementById('pm-image').value.trim(),
     images: document.getElementById('pm-images').value.trim()
       ? document.getElementById('pm-images').value.trim().split('\n').map(s => s.trim()).filter(Boolean)

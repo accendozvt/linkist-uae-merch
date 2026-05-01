@@ -15,7 +15,7 @@
 <style>
 .collection-page { max-width:1200px; margin:0 auto; padding:100px 64px 100px; }
 .collection-header { border-bottom:1px solid #1a1a1a; padding-bottom:32px; margin-bottom:48px; display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
-.collection-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(40px,5vw,72px); line-height:1; }
+.collection-title { font-family:'Inter',sans-serif; font-size:clamp(40px,5vw,72px); line-height:1; }
 .collection-meta { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; line-height:1.8; }
 .collection-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .loading-wrap { min-height:40vh; display:flex; align-items:center; justify-content:center; color:#888; font-family:'Space Mono',monospace; font-size:13px; }
@@ -37,7 +37,7 @@
 .pcard-info { padding:16px; display:flex; flex-direction:column; gap:10px; flex:1; }
 .pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
-.pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; }
+.pcard-price { font-family:'Inter',sans-serif; font-size:24px; line-height:1; }
 .pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
 .price-was { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:400; color:#555; text-decoration:line-through; margin-right:4px; }
 .price-sale { color:#E53935; }
@@ -54,7 +54,7 @@
 .notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
 .notify-modal-overlay.open { display:flex; }
 .notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; position:relative; }
-.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal h3 { font-family:'Inter',sans-serif; font-size:28px; margin:0 0 8px; }
 .notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
 .notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
 .notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; }
@@ -113,9 +113,10 @@ function renderProductCard(p) {
   const extraImgs = Array.isArray(p.images) ? p.images : [];
   const allImgs = [image, ...extraImgs].filter(Boolean);
   const origPrice = p.originalPrice || p.original_price;
+  function fmtP(v) { return 'AED ' + parseFloat(v).toFixed(2); }
   const priceHtml = origPrice
-    ? `<span class="price-was">${origPrice}</span><span class="price-sale">${p.price} <span>AED</span></span>`
-    : `${p.price} <span>AED</span>`;
+    ? `<span class="price-was">${fmtP(origPrice)}</span><span class="price-sale">${fmtP(p.price)}</span>`
+    : fmtP(p.price);
   return `
   <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="cpcard-${p.id}"${allImgs.length > 1 ? ` data-images='${JSON.stringify(allImgs)}'` : ''}>
     <a href="${page}" class="pcard-img-link" style="text-decoration:none;color:inherit;display:block;">

@@ -32,7 +32,7 @@
 .circle-svg {
   position:absolute; top:50%; left:50%;
   transform:translate(-50%,-50%);
-  width:min(88vw,580px); height:min(88vw,580px);
+  width:min(96vw,680px); height:min(96vw,680px);
   pointer-events:none; z-index:0;
   animation:spin 40s linear infinite;
 }
@@ -54,9 +54,9 @@
   position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
   animation:fadeup 0.9s ease forwards; opacity:0; animation-delay:0.2s;
 }
-.ht-i, .ht-left { font-family:'Bebas Neue',sans-serif; font-size:clamp(64px,12vw,160px); color:#fff; line-height:0.9; display:block; }
+.ht-i, .ht-left { font-family:'Inter',sans-serif; font-size:clamp(72px,14vw,180px); color:#fff; line-height:0.9; display:block; }
 .ht-never {
-  font-family:'Bebas Neue',sans-serif; font-size:clamp(88px,17vw,220px); line-height:0.9; display:block;
+  font-family:'Inter',sans-serif; font-size:clamp(96px,19vw,240px); line-height:0.9; display:block;
   background:linear-gradient(90deg,#C8102E 0%,#C8102E 18%,#e8a0a0 34%,#fff 50%,#a0c8a0 66%,#007A3D 82%,#007A3D 100%);
   -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
 }
@@ -93,7 +93,7 @@
   display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;
 }
 .cause-label { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:0.2em; color:#E53935; text-transform:uppercase; margin-bottom:12px; display:block; }
-.cause-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(36px,4.5vw,56px); line-height:1; margin-bottom:16px; }
+.cause-title { font-family:'Inter',sans-serif; font-size:clamp(36px,4.5vw,56px); line-height:1; margin-bottom:16px; }
 .cause-body { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
 .cause-body p+p { margin-top:12px; }
 .cause-body strong { color:#F5F5F5; font-weight:500; }
@@ -107,8 +107,8 @@
 .stat::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
 .stat:nth-child(1)::before{background:#C8102E} .stat:nth-child(2)::before{background:#fff}
 .stat:nth-child(3)::before{background:#007A3D} .stat:nth-child(4)::before{background:#E53935}
-.stat-num { font-family:'Bebas Neue',sans-serif; font-size:30px; line-height:1; margin-bottom:4px; color:#F5F5F5; display:block; }
-.stat-lbl { font-size:10px; font-weight:300; color:#999; line-height:1.4; }
+.stat-num { font-family:'Inter',sans-serif; font-size:30px; line-height:1; margin-bottom:4px; color:#F5F5F5; display:block; }
+.stat-lbl { font-size:13px; font-weight:300; color:#bbb; line-height:1.4; }
 /* Notify me */
 .notify-btn {
   display:none; width:100%; margin-top:10px; padding:8px;
@@ -127,9 +127,24 @@
   display:flex; align-items:flex-end; justify-content:space-between;
   border-top:1px solid #1a1a1a; padding-top:48px; margin-bottom:32px; gap:24px;
 }
-.section-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(32px,4.5vw,56px); line-height:1; }
+.section-title { font-family:'Inter',sans-serif; font-size:clamp(32px,4.5vw,56px); line-height:1; }
 .section-note { font-family:'Space Mono',monospace; font-size:10px; color:#999; letter-spacing:0.05em; text-align:right; max-width:180px; line-height:1.6; }
 .products-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+
+/* Loading skeleton */
+@keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+.pcard-skeleton {
+  background:#111; border:1px solid #1e1e1e; border-radius:10px; overflow:hidden;
+}
+.skel {
+  background:linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%);
+  background-size:400px 100%; animation:shimmer 1.4s ease-in-out infinite;
+  border-radius:4px;
+}
+.skel-img { height:0; padding-bottom:100%; border-radius:0; }
+.skel-line { height:14px; margin:14px 14px 8px; }
+.skel-line.short { width:60%; margin-top:0; }
+.skel-line.price { height:22px; width:45%; margin-top:4px; }
 
 /* PRODUCT CARD */
 .pcard {
@@ -150,7 +165,7 @@
 .pcard-info { padding:14px 16px 10px; display:flex; flex-direction:column; gap:6px; }
 .pcard-name { font-size:13px; font-weight:600; letter-spacing:0.02em; color:var(--white); }
 .pcard-tag  { font-family:'Space Mono',monospace; font-size:9px; color:#888; letter-spacing:0.06em; }
-.pcard-price { font-family:'Bebas Neue',sans-serif; font-size:24px; line-height:1; color:var(--white); }
+.pcard-price { font-family:'Inter',sans-serif; font-size:24px; line-height:1; color:var(--white); }
 .pcard-price span { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:400; color:#888; }
 .pcard-soldout { opacity:0.6; }
 .pcard-soldout:hover { transform:none; }
@@ -200,7 +215,7 @@
 .notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
 .notify-modal-overlay.open { display:flex; }
 .notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; }
-.notify-modal h3 { font-family:'Bebas Neue',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal h3 { font-family:'Inter',sans-serif; font-size:28px; margin:0 0 8px; }
 .notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
 .notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
 .notify-modal input:focus { border-color:#555; }
@@ -323,9 +338,10 @@ function renderProductCard(p) {
 
   const hasSoldOutSizes = SIZES.some(s => (stock[s] !== undefined ? stock[s] : 999) === 0);
 
+  function fmtP(v) { return 'AED ' + parseFloat(v).toFixed(2); }
   const priceHtml = origPrice
-    ? `<span class="price-was">${origPrice}</span><span class="pcard-price-sale">${p.price} <span>AED</span></span>`
-    : `${p.price} <span>AED</span>`;
+    ? `<span class="price-was">${fmtP(origPrice)}</span><span class="pcard-price-sale">${fmtP(p.price)}</span>`
+    : fmtP(p.price);
 
   return `
   <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="pcard-${p.id}"${allImgs.length > 1 ? ` data-images='${JSON.stringify(allImgs)}'` : ''}>
@@ -405,6 +421,17 @@ function qaAdd(pid, name, price, image) {
 }
 
 const grid = document.getElementById('products-grid');
+
+// Show skeletons while loading
+grid.innerHTML = Array(4).fill(0).map(() => `
+  <div class="pcard-skeleton">
+    <div class="skel skel-img"></div>
+    <div style="padding:14px 16px 18px">
+      <div class="skel skel-line"></div>
+      <div class="skel skel-line short"></div>
+      <div class="skel skel-line price"></div>
+    </div>
+  </div>`).join('');
 
 // Load from API first, fall back to hardcoded PRODUCTS
 fetch('/products')

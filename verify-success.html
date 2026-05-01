@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Verified — Linkist UAE</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/images/fav.png">
+<link rel="stylesheet" href="style.css">
+<style>
+.verify-wrap {
+  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:80px 24px;
+}
+.verify-card {
+  background:#111; border:1px solid #1e1e1e; border-radius:16px;
+  padding:48px 40px; width:100%; max-width:420px; text-align:center;
+}
+.verify-icon {
+  width:72px; height:72px; border-radius:50%; background:#007A3D;
+  display:flex; align-items:center; justify-content:center; margin:0 auto 24px;
+}
+.verify-title {
+  font-family:'Inter',sans-serif; font-size:28px; font-weight:800;
+  text-transform:uppercase; letter-spacing:-0.02em; margin-bottom:12px;
+}
+.verify-sub { font-size:14px; color:#888; line-height:1.7; margin-bottom:28px; }
+.verify-redirect { font-family:'Space Mono',monospace; font-size:11px; color:#555; }
+</style>
+</head>
+<body>
+<div class="verify-wrap">
+  <div class="verify-card">
+    <div class="verify-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="verify-title">Email Verified!</div>
+    <p class="verify-sub">Your account has been activated. You're being redirected now...</p>
+    <p class="verify-redirect" id="redirect-msg">Redirecting...</p>
+  </div>
+</div>
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const jwt = params.get('jwt');
+  const returnTo = params.get('return') || 'home';
+
+  // Save JWT to localStorage
+  if (jwt) {
+    localStorage.setItem('customer_token', jwt);
+    // Clear JWT from URL without page reload (security: remove from browser history)
+    const cleanUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  // Determine redirect destination
+  let dest = 'index.html';
+  const msg = document.getElementById('redirect-msg');
+
+  if (returnTo === 'checkout') {
+    dest = 'checkout.html';
+    msg.textContent = 'Taking you to checkout...';
+    localStorage.removeItem('pendingCheckout');
+  } else {
+    msg.textContent = 'Taking you to the collection...';
+  }
+
+  setTimeout(() => { window.location.href = dest; }, 1800);
+})();
+</script>
+</body>
+</html>

@@ -6,6 +6,7 @@ const { Resend } = require('resend');
 const PDFDocument = require('pdfkit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -44,10 +45,11 @@ const upload = multer({
 const PRODUCT_NAMES = { circle: 'Circle Edition', smile: 'Smile Edition', stripe: 'Stripe Edition', stealth: 'Stealth Edition' };
 
 // Authoritative product catalog — used as fallback when products are missing/deleted from DB
+// NOTE: Do NOT add original_price here — that column does not exist in Supabase schema
 const CATALOG = [
   {
     id: 'circle', name: 'Circle Edition', tagline: 'The original statement piece',
-    tag: 'DESIGN 01 · STATEMENT', price: 97, original_price: 149, badge: 'BESTSELLER',
+    tag: 'DESIGN 01 · STATEMENT', price: 97.1, badge: 'BESTSELLER',
     page: 'circle-edition.html', image: '/images/Linkist%2001.png', images: [],
     description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
     details: ['Dri-Fit performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
@@ -55,7 +57,7 @@ const CATALOG = [
   },
   {
     id: 'smile', name: 'Smile Edition', tagline: 'Quiet pride, loud message',
-    tag: 'DESIGN 02 · SUBTLE', price: 97, original_price: 149, badge: 'NEW',
+    tag: 'DESIGN 02 · SUBTLE', price: 97.1, badge: 'NEW',
     page: 'smile-edition.html', image: '/images/Linkist%2002.png', images: [],
     description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
@@ -63,7 +65,7 @@ const CATALOG = [
   },
   {
     id: 'stripe', name: 'Stripe Edition', tagline: 'Clean, wearable, timeless',
-    tag: 'DESIGN 03 · CLASSIC', price: 97, original_price: 149, badge: null,
+    tag: 'DESIGN 03 · CLASSIC', price: 97.1, badge: null,
     page: 'stripe-edition.html', image: '/images/Linkist%2003.png', images: [],
     description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
@@ -78,6 +80,12 @@ const CATALOG = [
     active: true
   }
 ];
+
+// Original (pre-sale) prices — injected into API responses, NOT stored in DB
+const ORIGINAL_PRICES = { circle: 149, smile: 149, stripe: 149 };
+
+// ── Sort order (1=first). Admin can update sort_order column in DB; this is the catalog default ──
+// Catalog order is the display order fallback when sort_order is not set in DB.
 
 // CRITICAL: webhook raw body MUST come before express.json()
 app.use('/webhook', express.raw({ type: 'application/json' }));
@@ -188,6 +196,8 @@ app.get('/products', async (req, res) => {
       // Use DB version if it exists; fall back to catalog if missing or soft-deleted
       const merged = (db && db.active !== false) ? { ...base, ...db } : { ...base };
       merged.stock = stockMap[base.id] || {};
+      // Inject original price for sale display (not stored in DB)
+      if (ORIGINAL_PRICES[merged.id]) merged.originalPrice = ORIGINAL_PRICES[merged.id];
       return merged;
     });
 
@@ -196,6 +206,13 @@ app.get('/products', async (req, res) => {
       if (p.active !== false && !CATALOG.find(c => c.id === p.id)) {
         result.push({ ...p, stock: stockMap[p.id] || {} });
       }
+    });
+
+    // Sort by sort_order if available, preserving catalog order as default
+    result.sort((a, b) => {
+      const ao = a.sort_order ?? 999;
+      const bo = b.sort_order ?? 999;
+      return ao - bo;
     });
 
     res.json(result);
@@ -223,7 +240,7 @@ app.post('/create-checkout', async (req, res) => {
     }
 
     // Load prices from DB (falls back to hardcoded for the 4 original products)
-    const FALLBACK_PRICES = { circle: 97, smile: 97, stripe: 97, stealth: 169 };
+    const FALLBACK_PRICES = { circle: 97.1, smile: 97.1, stripe: 97.1, stealth: 169 };
     let dbPrices = {};
     if (supabase) {
       const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
@@ -298,7 +315,7 @@ app.post('/pre-checkout', async (req, res) => {
     }
 
     // Load prices
-    const FALLBACK_PRICES = { circle: 97, smile: 97, stripe: 97, stealth: 169 };
+    const FALLBACK_PRICES = { circle: 97.1, smile: 97.1, stripe: 97.1, stealth: 169 };
     let dbPrices = {};
     if (supabase) {
       const { data: dbProducts } = await supabase.from('products').select('id, price').eq('active', true);
@@ -863,23 +880,97 @@ app.post('/customer/register', async (req, res) => {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
 
     // Check email unique
-    const { data: existing } = await supabase.from('customers').select('id').eq('email', email.toLowerCase()).single();
-    if (existing) return res.status(409).json({ error: 'Email already registered' });
+    const { data: existing } = await supabase.from('customers').select('id, email_verified').eq('email', email.toLowerCase()).single();
+    if (existing) {
+      if (!existing.email_verified) return res.status(409).json({ error: 'Email already registered but not verified. Check your inbox for the verification link.' });
+      return res.status(409).json({ error: 'Email already registered' });
+    }
 
     const password_hash = await bcrypt.hash(password, 12);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
     const { data: customer, error } = await supabase.from('customers').insert({
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password_hash,
+      email_verified: false,
+      verification_token: verificationToken,
+      verification_expires: verificationExpires,
     }).select('id, name, email, created_at').single();
 
     if (error) throw error;
 
-    sendWelcomeEmail(customer).catch(e => console.error('Welcome email failed:', e.message));
-    const token = makeToken(customer);
-    res.status(201).json({ token, customer: { id: customer.id, name: customer.name, email: customer.email } });
+    // Send verification email
+    const appOrigin = process.env.APP_URL || 'https://linkist.ai';
+    const verifyUrl = `${appOrigin}/customer/verify-email?token=${verificationToken}&return=${req.body.returnTo || 'home'}`;
+    if (resend) {
+      await sendMail({
+        from: 'Linkist UAE <hello@linkist.ai>',
+        to: customer.email,
+        subject: 'Verify your email — Linkist UAE',
+        html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td><td style="background:#fff;height:5px;"></td>
+    <td style="background:#111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:5px;">LINKIST</div>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;">I Never Left · UAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
+    <h1 style="color:#fff;font-size:24px;margin:0 0 12px;">Verify your email</h1>
+    <p style="color:#888;font-size:14px;line-height:1.8;margin:0 0 28px;">Hi ${escHtml(name.split(' ')[0])}, just one more step — click below to verify your email and activate your account.</p>
+    <a href="${verifyUrl}" style="display:inline-block;background:#E53935;color:#fff;font-size:13px;font-weight:bold;text-decoration:none;padding:16px 36px;border-radius:8px;letter-spacing:1px;">VERIFY MY EMAIL</a>
+    <p style="color:#444;font-size:12px;margin-top:24px;">This link expires in 24 hours. If you didn't sign up, you can ignore this email.</p>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 40px;text-align:center;border-top:1px solid #1e1e1e;">
+    <div style="font-size:11px;color:#444;">#WeStandWithUAE · linkist.ai</div>
+  </td></tr></table>
+</div></body></html>`
+      }).catch(e => console.error('Verification email failed:', e.message));
+    }
+
+    res.status(201).json({ verification_sent: true, email: customer.email });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Verify email ────────────────────────────────────────────────
+
+app.get('/customer/verify-email', async (req, res) => {
+  const { token, return: returnTo } = req.query;
+  const appOrigin = process.env.APP_URL || '';
+  if (!token) return res.redirect(`${appOrigin}/account-login.html?error=invalid_token`);
+  try {
+    if (!supabase) return res.redirect(`${appOrigin}/account-login.html?error=db_error`);
+    const { data: customer } = await supabase.from('customers')
+      .select('id, name, email, verification_token, verification_expires, email_verified')
+      .eq('verification_token', token).single();
+
+    if (!customer) return res.redirect(`${appOrigin}/account-login.html?error=invalid_token`);
+    if (customer.email_verified) {
+      // Already verified — just log them in
+      const jwt_token = makeToken(customer);
+      return res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${returnTo || 'home'}`);
+    }
+    if (new Date(customer.verification_expires) < new Date()) {
+      return res.redirect(`${appOrigin}/account-login.html?error=token_expired`);
+    }
+
+    // Mark verified, clear token
+    await supabase.from('customers')
+      .update({ email_verified: true, verification_token: null, verification_expires: null })
+      .eq('id', customer.id);
+
+    const jwt_token = makeToken(customer);
+    sendWelcomeEmail(customer).catch(e => console.error('Welcome email failed:', e.message));
+    res.redirect(`${appOrigin}/verify-success.html?jwt=${encodeURIComponent(jwt_token)}&return=${returnTo || 'home'}`);
+  } catch (err) {
+    console.error('Verify email error:', err.message);
+    res.redirect(`${appOrigin}/account-login.html?error=server_error`);
   }
 });
 
@@ -895,6 +986,10 @@ app.post('/customer/login', async (req, res) => {
 
     const valid = await bcrypt.compare(password, customer.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
+
+    if (customer.email_verified === false) {
+      return res.status(403).json({ error: 'Please verify your email before logging in. Check your inbox for the verification link.' });
+    }
 
     await supabase.from('customers').update({ last_login: new Date().toISOString() }).eq('id', customer.id);
 
@@ -1184,7 +1279,10 @@ app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
     if ('price' in body && (body.price === null || body.price === undefined || isNaN(body.price))) return res.status(400).json({ error: 'Price must be a number' });
     if ('images' in body) body.images = Array.isArray(body.images) ? body.images : [];
     if ('details' in body) body.details = Array.isArray(body.details) ? body.details : (typeof body.details === 'string' && body.details ? [body.details] : []);
-    const updates = { ...body, updated_at: new Date().toISOString() };
+    // Strip fields that are not DB columns — prevents "column not found" errors from Supabase
+    // id is passed as URL param (:id), not in body; stock is a separate table
+    const { originalPrice, original_price, _catalog_missing, _catalog_only, stock, id: _bodyId, ...safeBody } = body;
+    const updates = { ...safeBody, updated_at: new Date().toISOString() };
 
     // Check if the row exists first
     const { data: existing } = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
@@ -1196,7 +1294,9 @@ app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
       // Row missing from DB (hard-deleted) — re-insert from catalog base + requested updates
       const catalogBase = CATALOG.find(p => p.id === req.params.id);
       if (!catalogBase) return res.status(404).json({ error: 'Product not found in catalog or DB' });
-      ({ data, error } = await supabase.from('products').insert({ ...catalogBase, ...updates }).select().single());
+      // Strip client-only fields that don't exist in the DB schema
+      const { originalPrice, original_price, _catalog_missing, _catalog_only, stock, ...safeBase } = catalogBase;
+      ({ data, error } = await supabase.from('products').insert({ ...safeBase, ...updates }).select().single());
       if (!error) {
         // Recreate stock rows at zero
         const SIZES = ['XS','S','M','L','XL','XXL'];
@@ -1241,12 +1341,32 @@ app.get('/admin/stock', requireAdmin, async (req, res) => {
       supabase.from('products').select('id, name')
     ]);
     if (error) throw error;
+
+    // Build product name map — include DB products AND catalog products
     const productMap = {};
     (products || []).forEach(p => { productMap[p.id] = p; });
-    const result = (stock || []).map(s => ({
-      ...s,
-      products: productMap[s.product_id] || { name: s.product_id, id: s.product_id }
-    }));
+    CATALOG.forEach(c => { if (!productMap[c.id]) productMap[c.id] = { id: c.id, name: c.name }; });
+
+    // Build stock rows map by product
+    const stockByProduct = {};
+    (stock || []).forEach(s => {
+      if (!stockByProduct[s.product_id]) stockByProduct[s.product_id] = [];
+      stockByProduct[s.product_id].push(s);
+    });
+
+    // Ensure all known products appear; for those with no stock rows, add virtual zero rows
+    const SIZES_ORDER = ['XS','S','M','L','XL','XXL'];
+    const result = [];
+    Object.values(productMap).forEach(p => {
+      const rows = stockByProduct[p.id];
+      if (rows && rows.length > 0) {
+        rows.forEach(s => result.push({ ...s, products: p }));
+      } else {
+        // No stock rows yet — show as all-zero so admin can fill them in
+        SIZES_ORDER.forEach(size => result.push({ product_id: p.id, size, quantity: 0, products: p }));
+      }
+    });
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
