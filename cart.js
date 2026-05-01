@@ -222,7 +222,7 @@ const PRODUCTS = [
     price: 97.1,
     originalPrice: 149,
     badge: 'BESTSELLER',
-    page: 'circle-edition.html',
+    page: 'circle-edition-t-shirt.html',
     image: '/images/Linkist%2001.png',
     description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
     details: ['Dri-Fit performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
@@ -235,7 +235,7 @@ const PRODUCTS = [
     price: 97.1,
     originalPrice: 149,
     badge: 'NEW',
-    page: 'smile-edition.html',
+    page: 'smile-edition-t-shirt.html',
     image: '/images/Linkist%2002.png',
     description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
@@ -248,7 +248,7 @@ const PRODUCTS = [
     price: 97.1,
     originalPrice: 149,
     badge: null,
-    page: 'stripe-edition.html',
+    page: 'stripe-edition-t-shirt.html',
     image: '/images/Linkist%2003.png',
     description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop']
@@ -261,7 +261,7 @@ const PRODUCTS = [
     price: 169,
     originalPrice: 199,
     badge: 'PREMIUM',
-    page: 'stealth-edition.html',
+    page: 'stealth-edition-t-shirt.html',
     image: '/images/Linkist%2004.png',
     description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
     details: ['Premium cotton fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop']

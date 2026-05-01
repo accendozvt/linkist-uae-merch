@@ -4,10 +4,10 @@
 const fs = require('fs');
 
 const products = [
-  { id:'circle',  file:'circle-edition.html',  idx:0 },
-  { id:'smile',   file:'smile-edition.html',   idx:1 },
-  { id:'stripe',  file:'stripe-edition.html',  idx:2 },
-  { id:'stealth', file:'stealth-edition.html', idx:3 },
+  { id:'circle',  file:'circle-edition-t-shirt.html',  idx:0 },
+  { id:'smile',   file:'smile-edition-t-shirt.html',   idx:1 },
+  { id:'stripe',  file:'stripe-edition-t-shirt.html',  idx:2 },
+  { id:'stealth', file:'stealth-edition-t-shirt.html', idx:3 },
 ];
 
 const template = (p) => `<!DOCTYPE html>

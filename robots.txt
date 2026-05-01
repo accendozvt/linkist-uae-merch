@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Private / transactional pages
+Disallow: /admin.html
+Disallow: /checkout.html
+Disallow: /success.html
+Disallow: /account.html
+Disallow: /account-login.html
+Disallow: /verify-success.html
+
+Sitemap: https://ineverleft.linkist.ai/sitemap.xml

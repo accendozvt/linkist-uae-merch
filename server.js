@@ -50,7 +50,7 @@ const CATALOG = [
   {
     id: 'circle', name: 'Circle Edition', tagline: 'The original statement piece',
     tag: 'DESIGN 01 · STATEMENT', price: 97.1, badge: 'BESTSELLER',
-    page: 'circle-edition.html', image: '/images/Linkist%2001.png', images: [],
+    page: 'circle-edition-t-shirt.html', image: '/images/Linkist%2001.png', images: [],
     description: 'A bold circular arc in UAE flag colors frames the words that say everything — <em>I Never Left</em>. Worn by those who stayed when it mattered most.',
     details: ['Dri-Fit performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
     active: true
@@ -58,7 +58,7 @@ const CATALOG = [
   {
     id: 'smile', name: 'Smile Edition', tagline: 'Quiet pride, loud message',
     tag: 'DESIGN 02 · SUBTLE', price: 97.1, badge: 'NEW',
-    page: 'smile-edition.html', image: '/images/Linkist%2002.png', images: [],
+    page: 'smile-edition-t-shirt.html', image: '/images/Linkist%2002.png', images: [],
     description: 'A minimalist smile arc drawn in UAE flag colors sits above the words <em>I Never Left</em>. Subtle enough for everyday wear, meaningful enough to start a conversation.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
     active: true
@@ -66,7 +66,7 @@ const CATALOG = [
   {
     id: 'stripe', name: 'Stripe Edition', tagline: 'Clean, wearable, timeless',
     tag: 'DESIGN 03 · CLASSIC', price: 97.1, badge: null,
-    page: 'stripe-edition.html', image: '/images/Linkist%2003.png', images: [],
+    page: 'stripe-edition-t-shirt.html', image: '/images/Linkist%2003.png', images: [],
     description: 'Three lines in UAE flag colors underline the statement <em>I Never Left</em>. A classic design for those who carry their roots without making noise.',
     details: ['Premium performance fabric','Unisex fit — true to size','Crew neck, short sleeve','100% proceeds to UAE relief','Limited April 2026 drop'],
     active: true
@@ -74,7 +74,7 @@ const CATALOG = [
   {
     id: 'stealth', name: 'Stealth Edition', tagline: 'For those who know',
     tag: 'DESIGN 04 · PREMIUM', price: 169, badge: 'PREMIUM',
-    page: 'stealth-edition.html', image: '/images/Linkist%2004.png', images: [],
+    page: 'stealth-edition-t-shirt.html', image: '/images/Linkist%2004.png', images: [],
     description: 'Ultra-minimal tone-on-tone typography with a subtle diagonal texture. <em>I Never Left</em> rendered almost invisible against the black. No noise. Just conviction.',
     details: ['Premium cotton fabric','Unisex fit — true to size','Crew neck, short sleeve','Subtle diagonal texture detail','100% proceeds to UAE relief','Limited April 2026 drop'],
     active: true
