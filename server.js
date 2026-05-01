@@ -1457,15 +1457,37 @@ app.post('/notify-me', async (req, res) => {
     if (!email || !product_id) return res.status(400).json({ error: 'email and product_id are required' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const cleanEmail = email.toLowerCase().trim();
     const notifSize = size || '';
-    const { error } = await supabase.from('stock_notifications').upsert(
-      { email: email.toLowerCase().trim(), product_id, size: notifSize },
-      { onConflict: 'email,product_id,size', ignoreDuplicates: true }
-    );
-    if (error && !error.message.includes('duplicate')) throw error;
+
+    // Manual lookup → insert/update so re-subscribers get their notified_at reset to null,
+    // which means a previously-notified user gets re-emailed on the NEXT 0→stock transition.
+    const { data: existing } = await supabase.from('stock_notifications')
+      .select('id, notified_at')
+      .eq('email', cleanEmail)
+      .eq('product_id', product_id)
+      .eq('size', notifSize)
+      .maybeSingle();
+
+    if (existing) {
+      // Reset notified_at so they get the next back-in-stock email
+      if (existing.notified_at) {
+        const { error: upErr } = await supabase.from('stock_notifications')
+          .update({ notified_at: null }).eq('id', existing.id);
+        if (upErr) throw upErr;
+        console.log(`[notify-me] Re-subscribed ${cleanEmail} for ${product_id}/${notifSize || 'any'}`);
+      } else {
+        console.log(`[notify-me] Already pending for ${cleanEmail} on ${product_id}/${notifSize || 'any'}`);
+      }
+    } else {
+      const { error: insErr } = await supabase.from('stock_notifications')
+        .insert({ email: cleanEmail, product_id, size: notifSize, notified_at: null });
+      if (insErr) throw insErr;
+      console.log(`[notify-me] New subscriber ${cleanEmail} for ${product_id}/${notifSize || 'any'}`);
+    }
     res.json({ ok: true });
   } catch (err) {
-    console.error('notify-me error:', err.message);
+    console.error('[notify-me] error:', err.message);
     res.status(500).json({ error: 'Could not save notification request' });
   }
 });

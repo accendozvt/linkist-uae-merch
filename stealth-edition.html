@@ -39,9 +39,10 @@
   text-decoration:line-through; letter-spacing:0.02em;
 }
 .price-main {
-  font-family:'Inter',sans-serif; font-size:48px; color:var(--white); line-height:1;
-  letter-spacing:0.02em;
+  font-family:'Inter',sans-serif; font-size:30px; font-weight:700; color:var(--white); line-height:1;
+  letter-spacing:-0.01em;
 }
+.price-was-lg { font-size:14px !important; }
 .free-shipping {
   display:inline-flex; align-items:center; gap:5px;
   font-family:'Space Mono',monospace; font-size:10px; color:#007A3D;
@@ -310,7 +311,7 @@ function initSizes(stockData) {
   // Low stock tooltip
   if (stockData && SIZES.some(s => { const q = stockData[s] ?? 0; return q > 0 && q <= 4; })) {
     const style = document.createElement('style');
-    style.textContent = `.sz[data-stock-warn]{position:relative;}.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;}.sz[data-stock-warn]:hover::after{opacity:1;}`;
+    style.textContent = `.sz[data-stock-warn]{position:relative;}.sz[data-stock-warn]::after{content:attr(data-stock-warn);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#C8102E;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity 0.15s;z-index:10;}.sz[data-stock-warn]:first-child::after{left:0;transform:none;}.sz[data-stock-warn]:last-child::after{left:auto;right:0;transform:none;}.sz[data-stock-warn]:hover::after{opacity:1;}`;
     document.head.appendChild(style);
   }
 

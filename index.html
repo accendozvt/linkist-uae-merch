@@ -190,6 +190,8 @@
   transform:translateX(-50%); background:#C8102E; color:#fff; font-size:9px;
   padding:2px 6px; border-radius:3px; white-space:nowrap; z-index:5;
 }
+.pcard-qa-sizes .sz[data-stock-warn]:first-child:hover::after { left:0; transform:none; }
+.pcard-qa-sizes .sz[data-stock-warn]:last-child:hover::after { left:auto; right:0; transform:none; }
 .pcard-qa-bottom { display:flex; gap:6px; margin-top:8px; align-items:center; }
 .pcard-qa-bottom .qty-wrap { flex-shrink:0; border-radius:6px; }
 .pcard-qa-bottom .qty-btn { width:30px; height:32px; font-size:14px; }
