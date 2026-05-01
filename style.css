@@ -205,8 +205,8 @@ footer {
 .size-grid { display:flex; gap:6px; flex-wrap:wrap; }
 .sz {
   background:transparent; border:1px solid var(--border2); color:var(--dim);
-  font-family:'Space Mono',monospace; font-size:10px;
-  width:36px; height:36px; border-radius:6px; cursor:pointer;
+  font-family:'Space Mono',monospace; font-size:8px;
+  width:32px; height:32px; border-radius:5px; cursor:pointer;
   transition:all 0.15s; display:flex; align-items:center; justify-content:center;
 }
 .sz:hover { border-color:var(--white); color:var(--white); }

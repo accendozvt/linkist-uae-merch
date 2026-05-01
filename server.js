@@ -81,8 +81,8 @@ const CATALOG = [
   }
 ];
 
-// Original (pre-sale) prices — injected into API responses, NOT stored in DB
-const ORIGINAL_PRICES = { circle: 149, smile: 149, stripe: 149 };
+// Original (pre-sale) prices — injected into API responses as fallback when DB original_price is not set
+const ORIGINAL_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 199 };
 
 // ── Sort order (1=first). Admin can update sort_order column in DB; this is the catalog default ──
 // Catalog order is the display order fallback when sort_order is not set in DB.
@@ -196,8 +196,13 @@ app.get('/products', async (req, res) => {
       // Use DB version if it exists; fall back to catalog if missing or soft-deleted
       const merged = (db && db.active !== false) ? { ...base, ...db } : { ...base };
       merged.stock = stockMap[base.id] || {};
-      // Inject original price for sale display (not stored in DB)
-      if (ORIGINAL_PRICES[merged.id]) merged.originalPrice = ORIGINAL_PRICES[merged.id];
+      // Inject original price for sale display — prefer DB original_price, fall back to map
+      const dbOrigPrice = merged.original_price ?? null;
+      if (dbOrigPrice && parseFloat(dbOrigPrice) > parseFloat(merged.price || 0)) {
+        merged.originalPrice = parseFloat(dbOrigPrice);
+      } else if (ORIGINAL_PRICES[merged.id]) {
+        merged.originalPrice = ORIGINAL_PRICES[merged.id];
+      }
       return merged;
     });
 
@@ -902,7 +907,7 @@ app.post('/customer/register', async (req, res) => {
     if (error) throw error;
 
     // Send verification email
-    const appOrigin = process.env.APP_URL || 'https://linkist.ai';
+    const appOrigin = process.env.APP_URL || 'https://ineverleft.linkist.ai';
     const verifyUrl = `${appOrigin}/customer/verify-email?token=${verificationToken}&return=${req.body.returnTo || 'home'}`;
     if (resend) {
       await sendMail({
@@ -1279,10 +1284,15 @@ app.patch('/admin/products/:id', requireAdmin, async (req, res) => {
     if ('price' in body && (body.price === null || body.price === undefined || isNaN(body.price))) return res.status(400).json({ error: 'Price must be a number' });
     if ('images' in body) body.images = Array.isArray(body.images) ? body.images : [];
     if ('details' in body) body.details = Array.isArray(body.details) ? body.details : (typeof body.details === 'string' && body.details ? [body.details] : []);
-    // Strip fields that are not DB columns — prevents "column not found" errors from Supabase
-    // id is passed as URL param (:id), not in body; stock is a separate table
-    const { originalPrice, original_price, _catalog_missing, _catalog_only, stock, id: _bodyId, ...safeBody } = body;
+    // Strip client-only fields that are not DB columns
+    const { originalPrice, _catalog_missing, _catalog_only, stock, id: _bodyId, ...safeBody } = body;
     const updates = { ...safeBody, updated_at: new Date().toISOString() };
+    // Ensure price is always stored as float (DB column must be NUMERIC, not INTEGER)
+    if ('price' in updates) updates.price = parseFloat(updates.price);
+    if ('original_price' in updates) {
+      const op = parseFloat(updates.original_price);
+      updates.original_price = isNaN(op) ? null : op;
+    }
 
     // Check if the row exists first
     const { data: existing } = await supabase.from('products').select('id').eq('id', req.params.id).maybeSingle();
@@ -1401,11 +1411,13 @@ app.patch('/admin/stock', requireAdmin, async (req, res) => {
 app.post('/notify-me', async (req, res) => {
   try {
     const { email, product_id, size } = req.body;
-    if (!email || !product_id || !size) return res.status(400).json({ error: 'email, product_id and size required' });
+    // size is optional — empty string means "any size"
+    if (!email || !product_id) return res.status(400).json({ error: 'email and product_id are required' });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email' });
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const notifSize = size || '';
     const { error } = await supabase.from('stock_notifications').upsert(
-      { email: email.toLowerCase().trim(), product_id, size },
+      { email: email.toLowerCase().trim(), product_id, size: notifSize },
       { onConflict: 'email,product_id,size', ignoreDuplicates: true }
     );
     if (error && !error.message.includes('duplicate')) throw error;
@@ -1419,18 +1431,27 @@ app.post('/notify-me', async (req, res) => {
 async function fireStockNotifications(productId, size, newQty) {
   if (!supabase || !resend || newQty <= 0) return;
   try {
-    const { data: notifs } = await supabase.from('stock_notifications')
-      .select('id, email').eq('product_id', productId).eq('size', size).is('notified_at', null);
-    if (!notifs?.length) return;
     const productName = PRODUCT_NAMES[productId] || productId;
+    // Notify both: size-specific subscribers AND any-size (size='') subscribers
+    const sizesToQuery = size ? [size, ''] : [''];
+    const { data: notifs } = await supabase.from('stock_notifications')
+      .select('id, email, size')
+      .eq('product_id', productId)
+      .in('size', sizesToQuery)
+      .is('notified_at', null);
+    if (!notifs?.length) return;
     for (const n of notifs) {
-      await sendStockNotificationEmail(n.email, productName, productId, size).catch(e =>
+      // For any-size subscribers, tell them the specific size that came back
+      const notifySize = n.size || size;
+      await sendStockNotificationEmail(n.email, productName, productId, notifySize).catch(e =>
         console.error('Stock notif email failed:', e.message)
       );
     }
+    // Mark notified
+    const ts = new Date().toISOString();
     await supabase.from('stock_notifications')
-      .update({ notified_at: new Date().toISOString() })
-      .eq('product_id', productId).eq('size', size).is('notified_at', null);
+      .update({ notified_at: ts })
+      .eq('product_id', productId).in('size', sizesToQuery).is('notified_at', null);
     console.log(`[stock-notify] Sent ${notifs.length} notification(s) for ${productId}/${size}`);
   } catch (e) {
     console.error('fireStockNotifications error:', e.message);
@@ -1438,7 +1459,8 @@ async function fireStockNotifications(productId, size, newQty) {
 }
 
 async function sendStockNotificationEmail(email, productName, productId, size) {
-  const productPage = `https://linkist.ai/${productId}-edition.html`;
+  const appOrigin = process.env.APP_URL || 'https://ineverleft.linkist.ai';
+  const productPage = `${appOrigin}/${productId}-edition.html`;
   await sendMail({
     from: 'Linkist UAE <hello@linkist.ai>',
     to: email,
