@@ -165,6 +165,19 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname)));
 
+// ── 301 redirects for renamed product page slugs ─────────────────
+const PAGE_REDIRECTS = {
+  '/circle-edition.html':  '/circle-edition-t-shirt.html',
+  '/smile-edition.html':   '/smile-edition-t-shirt.html',
+  '/stripe-edition.html':  '/stripe-edition-t-shirt.html',
+  '/stealth-edition.html': '/stealth-edition-t-shirt.html',
+};
+app.use((req, res, next) => {
+  const dest = PAGE_REDIRECTS[req.path];
+  if (dest) return res.redirect(301, dest);
+  next();
+});
+
 // Apply Origin/Referer CSRF defense to all state-changing endpoints.
 // GET requests pass through. /webhook is exempt above.
 app.use((req, res, next) => {
