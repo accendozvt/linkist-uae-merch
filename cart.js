@@ -1,3 +1,28 @@
+// ── HTML SAFETY HELPERS ───────────────────────────────────────
+// escapeHtml: turn any string into safe text — use on user/admin-supplied
+// data that should be rendered as plain text (titles, names, list items).
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// sanitizeRichText: allow a small set of formatting tags in product descriptions
+// (set by admin) — strip <script>, on*= handlers, javascript: URLs, etc.
+// Falls back to plain-text escape if DOMPurify is unavailable.
+function sanitizeRichText(html) {
+  if (typeof DOMPurify !== 'undefined') {
+    return DOMPurify.sanitize(String(html ?? ''), {
+      ALLOWED_TAGS: ['em', 'strong', 'b', 'i', 'u', 'br', 'p', 'span'],
+      ALLOWED_ATTR: [],
+      ALLOW_DATA_ATTR: false,
+    });
+  }
+  return escapeHtml(html);
+}
+
 // ── PRODUCTS CACHE (stale-while-revalidate) ───────────────────
 // Cache /products responses in localStorage so returning visitors get instant,
 // accurate renders without waiting for the network. Pages call:

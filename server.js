@@ -87,6 +87,18 @@ const ORIGINAL_PRICES = { circle: 149, smile: 149, stripe: 149, stealth: 199 };
 // Linkist.ai parent-site URL for coupon redemption
 const LINKIST_PARENT_URL = process.env.LINKIST_PARENT_URL || 'https://linkist.ai';
 
+// Mask an email for log output: jo***@gmail.com — keeps domain + first 2 chars
+// for debuggability without leaking PII into Vercel function logs / aggregators.
+function maskEmail(e) {
+  if (!e) return '<none>';
+  const s = String(e);
+  const at = s.indexOf('@');
+  if (at < 0) return s.length > 4 ? s.slice(0, 2) + '***' : '***';
+  const user = s.slice(0, at);
+  const domain = s.slice(at + 1);
+  return (user.slice(0, 2) || '*') + '***@' + domain;
+}
+
 // Coupon code generator — format LK-XXXX-XXXX, no ambiguous chars (no 0/O/1/I)
 function generateCouponCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -120,7 +132,7 @@ async function issueCouponForEmail({ email, name, orderId }) {
     }
     // else loop and try a new code (handles UNIQUE(code) collision)
   }
-  console.error('[coupon] Failed to issue coupon for', cleanEmail);
+  console.error('[coupon] Failed to issue coupon for', maskEmail(cleanEmail));
   return null;
 }
 
@@ -204,8 +216,10 @@ function isRateLimited(key, max, windowMs) {
   return e.n > max;
 }
 
-// Whitelist origins used to build Stripe redirect URLs
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'linkist.ai,ineverleft.linkist.ai,linkist-uae-merch.vercel.app,localhost').split(',');
+// Whitelist origins used to build Stripe redirect URLs.
+// Production default no longer includes localhost — set ALLOWED_ORIGINS env var
+// locally (e.g. "localhost,ineverleft.linkist.ai") for dev-from-localhost testing.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'linkist.ai,ineverleft.linkist.ai,linkist-uae-merch.vercel.app').split(',');
 function safeOrigin(req) {
   const origin = req.headers.origin || '';
   try {
@@ -754,18 +768,18 @@ async function sendMail(payload) {
     for (let attempt = 1; attempt <= 4; attempt++) {
       const result = await resend.emails.send(payload);
       if (!result?.error) {
-        console.log('[email] sent OK id=', result?.data?.id, 'to=', payload.to, 'subject=', payload.subject);
+        console.log('[email] sent OK id=', result?.data?.id, 'to=', maskEmail(payload.to), 'subject=', payload.subject);
         return result.data;
       }
       const msg = result.error.message || JSON.stringify(result.error);
       const isRate = /rate.?limit|too.?many|429/i.test(msg) || result.error.statusCode === 429 || result.error.name === 'rate_limit_exceeded';
       if (isRate && attempt < 4) {
         const wait = 700 * attempt;
-        console.warn(`[email] rate-limited, retry ${attempt} in ${wait}ms — to:`, payload.to, 'subject:', payload.subject);
+        console.warn(`[email] rate-limited, retry ${attempt} in ${wait}ms — to:`, maskEmail(payload.to), 'subject:', payload.subject);
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
-      console.error('[email] Resend rejected:', msg, '— to:', payload.to, 'subject:', payload.subject);
+      console.error('[email] Resend rejected:', msg, '— to:', maskEmail(payload.to), 'subject:', payload.subject);
       throw new Error(`Resend error: ${msg}`);
     }
     throw new Error('Resend error: rate limit retries exhausted');
@@ -2134,15 +2148,15 @@ app.post('/notify-me', async (req, res) => {
         const { error: upErr } = await supabase.from('stock_notifications')
           .update({ notified_at: null }).eq('id', existing.id);
         if (upErr) throw upErr;
-        console.log(`[notify-me] Re-subscribed ${cleanEmail} for ${product_id}/${notifSize || 'any'}`);
+        console.log(`[notify-me] Re-subscribed ${maskEmail(cleanEmail)} for ${product_id}/${notifSize || 'any'}`);
       } else {
-        console.log(`[notify-me] Already pending for ${cleanEmail} on ${product_id}/${notifSize || 'any'}`);
+        console.log(`[notify-me] Already pending for ${maskEmail(cleanEmail)} on ${product_id}/${notifSize || 'any'}`);
       }
     } else {
       const { error: insErr } = await supabase.from('stock_notifications')
         .insert({ email: cleanEmail, product_id, size: notifSize, notified_at: null });
       if (insErr) throw insErr;
-      console.log(`[notify-me] New subscriber ${cleanEmail} for ${product_id}/${notifSize || 'any'}`);
+      console.log(`[notify-me] New subscriber ${maskEmail(cleanEmail)} for ${product_id}/${notifSize || 'any'}`);
     }
     res.json({ ok: true });
   } catch (err) {
@@ -2174,10 +2188,10 @@ async function fireStockNotifications(productId, size, newQty) {
       try {
         await sendStockNotificationEmail(n.email, productName, productId, notifySize);
         sent++;
-        console.log(`[stock-notify] ✓ sent to ${n.email} (${productId}/${notifySize})`);
+        console.log(`[stock-notify] ✓ sent to ${maskEmail(n.email)} (${productId}/${notifySize})`);
       } catch (e) {
         failed++;
-        console.error(`[stock-notify] ✗ failed for ${n.email}:`, e.message);
+        console.error(`[stock-notify] ✗ failed for ${maskEmail(n.email)}:`, e.message);
       }
     }
     // Mark only successfully-processed notifs as done (so failures retry on next stock change)
@@ -2549,7 +2563,7 @@ app.delete('/admin/customers/by-email', requireAdmin, async (req, res) => {
       counts.customer = count || 0;
     }
 
-    console.log(`[admin/delete-customer] ${cleanEmail} → deleted`, counts);
+    console.log(`[admin/delete-customer] ${maskEmail(cleanEmail)} → deleted`, counts);
     res.json({ ok: true, email: cleanEmail, deleted: counts });
   } catch (err) {
     console.error('[admin/delete-customer] error:', err.message);

@@ -99,6 +99,7 @@
   </div>
 </div>
 
+<script src="purify.min.js"></script>
 <script src="cart.js"></script>
 <script>
 document.getElementById('nav-root').innerHTML = renderNav();
@@ -137,15 +138,15 @@ function renderPage(product, allProducts) {
     <div class="product-wrap">
       <div>
         <div class="product-img-main" id="main-img-wrap">
-          <img id="prod-img" src="${image}" alt="${product.name}"/>
+          <img id="prod-img" src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}"/>
         </div>
         <div class="thumb-strip" id="thumb-strip" style="display:none"></div>
       </div>
       <div class="product-info">
         <div>
-          <div class="product-tag">${product.tag || ''}</div>
-          <h1 class="product-name">${product.name}</h1>
-          <p class="product-tagline">${product.tagline || ''}</p>
+          <div class="product-tag">${escapeHtml(product.tag || '')}</div>
+          <h1 class="product-name">${escapeHtml(product.name)}</h1>
+          <p class="product-tagline">${escapeHtml(product.tagline || '')}</p>
         </div>
         <div class="product-price-row">
           ${(product.compare_at_price || product.original_price) && parseFloat(product.compare_at_price || product.original_price) > parseFloat(product.price)
@@ -179,11 +180,11 @@ function renderPage(product, allProducts) {
         <hr class="product-divider">
         <div>
           <span class="label">About This Design</span>
-          <p class="product-desc">${product.description || ''}</p>
+          <p class="product-desc">${sanitizeRichText(product.description || '')}</p>
         </div>
         ${details.length ? `<div>
           <span class="label">Details</span>
-          <ul class="details-list">${details.map(d => '<li>' + d + '</li>').join('')}</ul>
+          <ul class="details-list">${details.map(d => '<li>' + escapeHtml(d) + '</li>').join('')}</ul>
         </div>` : ''}
       </div>
     </div>
@@ -305,14 +306,14 @@ function renderPage(product, allProducts) {
   document.getElementById('other-grid').innerHTML = others.map(p => {
     const img = p.image_url || p.image || '';
     const pg = p.page || `product.html?id=${p.id}`;
-    return `<a href="${pg}" class="pcard">
+    return `<a href="${escapeHtml(pg)}" class="pcard">
       <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
-        <img src="${img}" alt="${p.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"/>
-        ${p.badge ? '<div class="pcard-badge">' + p.badge + '</div>' : ''}
+        <img src="${escapeHtml(img)}" alt="${escapeHtml(p.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+        ${p.badge ? '<div class="pcard-badge">' + escapeHtml(p.badge) + '</div>' : ''}
       </div>
       <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:#111;">
-        <div class="pcard-name">${p.name}</div>
-        <div class="pcard-tag">${p.tag || ''}</div>
+        <div class="pcard-name">${escapeHtml(p.name)}</div>
+        <div class="pcard-tag">${escapeHtml(p.tag || '')}</div>
         <div class="pcard-price" style="color:#F5F5F5;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;">AED ${parseFloat(p.price).toFixed(2)}</div>
       </div>
     </a>`;

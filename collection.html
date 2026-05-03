@@ -127,19 +127,19 @@ function renderProductCard(p) {
     : fmtP(p.price);
   return `
   <div class="pcard${soldOut ? ' pcard-soldout' : ''}" id="cpcard-${p.id}"${allImgs.length > 1 ? ` data-images='${JSON.stringify(allImgs)}'` : ''}>
-    <a href="${page}" class="pcard-img-link" style="text-decoration:none;color:inherit;display:block;">
+    <a href="${escapeHtml(page)}" class="pcard-img-link" style="text-decoration:none;color:inherit;display:block;">
       <div class="pcard-img">
-        <img src="${image}" alt="${p.name}" loading="lazy" id="cpcard-img-${p.id}"/>
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(p.name)}" loading="lazy" id="cpcard-img-${p.id}"/>
         ${allImgs.length > 1 ? `<div class="pcard-img-dots" id="cpcard-dots-${p.id}">${allImgs.map((_,i)=>`<span class="pcard-dot${i===0?' active':''}" onclick="event.preventDefault();cpcardSetImg('${p.id}',${i})"></span>`).join('')}</div>` : ''}
         <div class="pcard-badges">
-          ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+          ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${escapeHtml(p.badge)}</div>` : '')}
           ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
         </div>
       </div>
       <div class="pcard-info">
         <div>
-          <div class="pcard-name">${p.name}</div>
-          <div class="pcard-tag">${p.tag || ''}</div>
+          <div class="pcard-name">${escapeHtml(p.name)}</div>
+          <div class="pcard-tag">${escapeHtml(p.tag || '')}</div>
         </div>
         <div class="pcard-price">${priceHtml}</div>
         <div class="pcard-cta">

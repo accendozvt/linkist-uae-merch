@@ -5,7 +5,7 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["*.html", "*.css", "cart.js", "images/**", "sitemap.xml", "robots.txt"]
+        "includeFiles": ["*.html", "*.css", "cart.js", "purify.min.js", "images/**", "sitemap.xml", "robots.txt"]
       }
     }
   ],

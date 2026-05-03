@@ -82,3 +82,8 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS saved_addresses JSONB NOT NULL DE
 -- ── Cookie / PDPL consent tracking ───────────────────────────────
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS cookie_consent VARCHAR(20);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS cookie_consent_at TIMESTAMPTZ;
+
+-- ── Cross-device cart sync (server-side cart for logged-in customers) ──
+-- Used by GET/PUT /customer/cart. Was added implicitly to production DB
+-- earlier; added here so disaster-recovery / fresh staging rebuilds pick it up.
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS cart_data JSONB;

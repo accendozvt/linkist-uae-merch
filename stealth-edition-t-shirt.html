@@ -202,6 +202,7 @@
   </div>
 </div>
 
+<script src="purify.min.js"></script>
 <script src="cart.js"></script>
 <script>
 const PRODUCT_ID = 'stealth';
@@ -276,8 +277,8 @@ function initProduct(stockData) {
     badgesEl.innerHTML = badgeHtml + stockHtml;
   }
 
-  document.getElementById('prod-desc').innerHTML = p.description || '';
-  document.getElementById('prod-details').innerHTML = (p.details || []).map(d => '<li>' + d + '</li>').join('');
+  document.getElementById('prod-desc').innerHTML = sanitizeRichText(p.description || '');
+  document.getElementById('prod-details').innerHTML = (p.details || []).map(d => '<li>' + escapeHtml(d) + '</li>').join('');
 
   // Thumbnail strip
   const extraImgs = Array.isArray(p.images) ? p.images : [];
@@ -309,14 +310,14 @@ function initProduct(stockData) {
       ? `<div style="font-size:11px;color:#555;text-decoration:line-through;font-family:'DM Sans',sans-serif;">${fmtPrice(orig)}</div><div style="color:#F5F5F5;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;">${fmtPrice(op.price)}</div>`
       : `<div style="color:#F5F5F5;font-family:'Inter',sans-serif;font-weight:700;font-size:16px;">${fmtPrice(op.price)}</div>`;
     return `
-    <a href="${op.page}" class="pcard" style="text-decoration:none;color:inherit;">
+    <a href="${escapeHtml(op.page)}" class="pcard" style="text-decoration:none;color:inherit;">
       <div class="pcard-img" style="background:#0d0d0d;aspect-ratio:1/1;overflow:hidden;position:relative;">
-        <img src="${op.image}" alt="${op.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
-        ${op.badge ? '<div class="pcard-badge">' + op.badge + '</div>' : ''}
+        <img src="${escapeHtml(op.image)}" alt="${escapeHtml(op.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.5s;"/>
+        ${op.badge ? '<div class="pcard-badge">' + escapeHtml(op.badge) + '</div>' : ''}
       </div>
       <div class="pcard-info" style="padding:14px;display:flex;flex-direction:column;gap:6px;background:#111;">
-        <div class="pcard-name">${op.name}</div>
-        <div class="pcard-tag" style="color:#666;">${op.tag || ''}</div>
+        <div class="pcard-name">${escapeHtml(op.name)}</div>
+        <div class="pcard-tag" style="color:#666;">${escapeHtml(op.tag || '')}</div>
         ${priceHtml}
       </div>
     </a>`;
