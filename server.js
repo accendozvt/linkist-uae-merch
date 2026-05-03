@@ -1320,6 +1320,7 @@ app.post('/customer/register', async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 12);
     const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     const { data: customer, error } = await supabase.from('customers').insert({
@@ -1327,7 +1328,7 @@ app.post('/customer/register', async (req, res) => {
       email: email.toLowerCase().trim(),
       password_hash,
       email_verified: false,
-      verification_token: verificationToken,
+      verification_token: verificationTokenHash, // store hash, send raw to user
       verification_expires: verificationExpires,
     }).select('id, name, email, created_at').single();
 
@@ -1378,9 +1379,11 @@ app.get('/customer/verify-email', async (req, res) => {
   if (!token) return res.redirect(`${appOrigin}/account-login.html?error=invalid_token`);
   try {
     if (!supabase) return res.redirect(`${appOrigin}/account-login.html?error=db_error`);
+    // Lookup by SHA-256 hash of the raw token (defense-in-depth: DB dump can't be replayed)
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
     const { data: customer } = await supabase.from('customers')
       .select('id, name, email, verification_token, verification_expires, email_verified')
-      .eq('verification_token', token).single();
+      .eq('verification_token', tokenHash).single();
 
     if (!customer) return res.redirect(`${appOrigin}/account-login.html?error=invalid_token`);
     if (customer.email_verified) {
@@ -1784,7 +1787,7 @@ app.post('/customer/consent', requireCustomer, async (req, res) => {
     const { error } = await supabase
       .from('customers')
       .update({ cookie_consent: consent, cookie_consent_at: new Date().toISOString() })
-      .eq('id', req.customerId);
+      .eq('id', req.customer.customerId);
     if (error) throw error;
     res.json({ ok: true });
   } catch (err) {
@@ -2192,7 +2195,7 @@ async function fireStockNotifications(productId, size, newQty) {
 
 async function sendStockNotificationEmail(email, productName, productId, size) {
   const appOrigin = process.env.APP_URL || 'https://ineverleft.linkist.ai';
-  const productPage = `${appOrigin}/${productId}-edition.html`;
+  const productPage = `${appOrigin}/${productId}-edition-t-shirt.html`;
   await sendMail({
     from: 'Linkist UAE <hello@linkist.ai>',
     to: email,

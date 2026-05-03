@@ -212,16 +212,26 @@
 
 <script src="cart.js"></script>
 <script>
-// Redirect if already logged in
-const existing = getCustomer();
-if (existing) window.location.href = redirectTo;
-
 document.getElementById('nav-root').innerHTML = renderNav();
 
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('tab') === 'register') switchAuthTab('register');
 const linkSession = urlParams.get('link_session') || null;
-const redirectTo = urlParams.get('redirect') || 'account.html';
+
+// Sanitize redirect param to prevent open-redirect attacks (e.g. ?redirect=//evil.com).
+// Only accept relative paths / bare filenames on this origin.
+function _safeRedirect(target) {
+  if (!target) return 'account.html';
+  const t = String(target);
+  if (t.startsWith('//') || t.includes(':') || /^https?/i.test(t)) return 'account.html';
+  if (/^[a-zA-Z0-9_\-\/.?=&%]+$/.test(t)) return t;
+  return 'account.html';
+}
+const redirectTo = _safeRedirect(urlParams.get('redirect'));
+
+// Redirect if already logged in (after redirectTo is defined — fixes prior TDZ bug)
+const existing = getCustomer();
+if (existing) window.location.href = redirectTo;
 
 async function linkGuestOrder(token) {
   if (!linkSession) return;
@@ -356,6 +366,5 @@ if (urlError) {
   errEl.style.display = 'block';
 }
 </script>
-<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>

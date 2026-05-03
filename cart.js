@@ -271,12 +271,33 @@ function setCookieConsent(choice) {
   localStorage.setItem('cookie_consent', choice);
   const banner = document.getElementById('cookie-banner');
   if (banner) banner.remove();
-  // If they declined analytics, disable Vercel Analytics beacon
-  if (choice === 'essential') {
+  if (choice === 'all') {
+    loadAnalyticsIfConsented(); // Inject analytics now that user accepted
+  } else {
     window.va = function() {}; // no-op the analytics queue
   }
   // Persist to server if a customer is logged in
   _syncConsentToServer(choice);
+}
+
+// PDPL-safe: only inject Vercel Analytics after the user explicitly accepted "all".
+// Called on every page load (no-op until consent given) and right after Accept All.
+function loadAnalyticsIfConsented() {
+  if (localStorage.getItem('cookie_consent') !== 'all') return;
+  if (document.querySelector('script[data-vercel-analytics]')) return; // already loaded
+  const s = document.createElement('script');
+  s.defer = true;
+  s.src = '/_vercel/insights/script.js';
+  s.setAttribute('data-vercel-analytics', '1');
+  document.head.appendChild(s);
+}
+// Run once on every page load
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAnalyticsIfConsented);
+  } else {
+    loadAnalyticsIfConsented();
+  }
 }
 
 // ── LOGO SVG ─────────────────────────────────────────────────
