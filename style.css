@@ -202,11 +202,11 @@ footer {
 .btn-secondary:hover { border-color:var(--white); color:var(--white); }
 
 /* ── SIZE SELECTOR ── */
-.size-grid { display:flex; gap:6px; flex-wrap:wrap; }
+.size-grid { display:flex; gap:8px; flex-wrap:wrap; }
 .sz {
   background:transparent; border:1px solid var(--border2); color:var(--dim);
-  font-family:'Space Mono',monospace; font-size:8px;
-  width:32px; height:32px; border-radius:5px; cursor:pointer;
+  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.04em;
+  min-width:48px; height:46px; padding:0 10px; border-radius:7px; cursor:pointer;
   transition:all 0.15s; display:flex; align-items:center; justify-content:center;
 }
 .sz:hover { border-color:var(--white); color:var(--white); }

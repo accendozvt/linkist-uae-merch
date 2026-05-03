@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stripe Edition — I Never Left · Linkist UAE</title>
+<title>Stripe Edition â€” I Never Left Â· Linkist UAE</title>
 <link rel="stylesheet" href="style.css">
 <style>
 .product-wrap {
@@ -145,7 +145,7 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
-      <div id="size-stock-hint" style="display:none;margin-top:6px;font-family:'Space Mono',monospace;font-size:10px;color:#E53935;letter-spacing:0.05em;"></div>
+      <div id="size-stock-hint" style="display:none;margin-top:8px;font-family:'Space Mono',monospace;font-size:13px;color:#E53935;letter-spacing:0.04em;"></div>
       <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         Notify me when a size is back in stock
@@ -234,7 +234,7 @@ function fmtPrice(p) {
 
 function initProduct(stockData, isLive = false) {
   const p = _product;
-  document.title = p.name + ' — I Never Left · Linkist';
+  document.title = p.name + ' â€” I Never Left Â· Linkist';
 
   const mainImg = document.getElementById('prod-img');
   const baseImg = p.image_url || p.image || '';
@@ -245,7 +245,7 @@ function initProduct(stockData, isLive = false) {
   document.getElementById('prod-name').textContent = p.name;
   document.getElementById('prod-tagline').textContent = p.tagline || '';
 
-  // Price display — only render from live API data to prevent flash
+  // Price display â€” only render from live API data to prevent flash
   const priceWrap = document.getElementById('prod-price-wrap');
   if (isLive) {
     const origPrice = p.originalPrice || p.original_price;
@@ -258,7 +258,7 @@ function initProduct(stockData, isLive = false) {
       Free Shipping
     </div>`;
   } else if (!priceWrap.querySelector('.price-main')) {
-    priceWrap.innerHTML = '<div class="price-main" style="opacity:0.2;letter-spacing:0.05em;">AED —</div>';
+    priceWrap.innerHTML = '<div class="price-main" style="opacity:0.2;letter-spacing:0.05em;">AED â€”</div>';
   }
 
   // Image badges (badge label + low-stock warning)
@@ -325,7 +325,7 @@ function initSizes(stockData) {
     const q = stockData ? (stockData[s] ?? 0) : null;
     const isSoldOut = stockData !== null && q === 0;
     const isLow = !isSoldOut && q !== null && q > 0 && q <= 4;
-    // NOT using `disabled` — sold-out sizes are still clickable to trigger notify
+    // NOT using `disabled` â€” sold-out sizes are still clickable to trigger notify
     return `<button class="sz${isSoldOut ? ' sold-out' : ''}" data-size="${s}" data-sold-out="${isSoldOut}"${isLow ? ` data-stock-warn="Only ${q} left"` : ''}>${s}</button>`;
   }).join('');
 
@@ -342,7 +342,7 @@ function initSizes(stockData) {
     link.style.display = 'flex';
   }
 
-  // Click: sold-out → open notify modal for THAT size; available → select it
+  // Click: sold-out â†’ open notify modal for THAT size; available â†’ select it
   const stockHint = document.getElementById('size-stock-hint');
   sizeGrid.querySelectorAll('.sz').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -388,7 +388,7 @@ document.getElementById('atc-btn').addEventListener('click', () => {
   const itemKey = `${_product.id}-${selectedSize}`;
   Cart.add(_product, selectedSize, qty);
   const btn = document.getElementById('atc-btn');
-  btn.textContent = '✓ Added!';
+  btn.textContent = 'âœ“ Added!';
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
