@@ -447,32 +447,30 @@ function pcardSetImg(pid, idx) {
 
 const grid = document.getElementById('products-grid');
 
-// Show skeletons while loading
-grid.innerHTML = Array(4).fill(0).map(() => `
-  <div class="pcard-skeleton">
-    <div class="skel skel-img"></div>
-    <div style="padding:14px 16px 18px">
-      <div class="skel skel-line"></div>
-      <div class="skel skel-line short"></div>
-      <div class="skel skel-line price"></div>
-    </div>
-  </div>`).join('');
+// Stale-while-revalidate: render instantly from localStorage cache,
+// fall back to bundled PRODUCTS on first-ever visit (skeleton avoided),
+// then refresh in background and re-render only if data actually changed.
+let _lastRenderHome = getCachedProducts() || PRODUCTS;
 
-// Load from API first, fall back to hardcoded PRODUCTS
-fetch('/products')
-  .then(r => r.json())
+function renderHomeGrid(products) {
+  const list = products.slice(0, 9);
+  grid.innerHTML = list.map(renderProductCard).join('');
+  if (products.length > 9 && !document.getElementById('home-view-all')) {
+    grid.insertAdjacentHTML('afterend', '<div id="home-view-all" style="text-align:center;margin-top:32px"><a href="collection.html" class="btn-primary" style="display:inline-block;padding:14px 36px;text-decoration:none;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.1em">VIEW ALL →</a></div>');
+  }
+  initCardCarousels();
+}
+
+renderHomeGrid(_lastRenderHome);
+
+fetchAndCacheProducts()
   .then(products => {
-    const list = (products.length ? products : PRODUCTS).slice(0, 9);
-    grid.innerHTML = list.map(renderProductCard).join('');
-    if ((products.length ? products : PRODUCTS).length > 9) {
-      grid.insertAdjacentHTML('afterend', '<div style="text-align:center;margin-top:32px"><a href="collection.html" class="btn-primary" style="display:inline-block;padding:14px 36px;text-decoration:none;font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:0.1em">VIEW ALL →</a></div>');
-    }
-    initCardCarousels();
+    const list = (products.length ? products : PRODUCTS);
+    if (JSON.stringify(list) === JSON.stringify(_lastRenderHome)) return;
+    _lastRenderHome = list;
+    renderHomeGrid(list);
   })
-  .catch(() => {
-    grid.innerHTML = PRODUCTS.slice(0, 9).map(renderProductCard).join('');
-    initCardCarousels();
-  });
+  .catch(() => { /* keep what we already rendered */ });
 
 // Auto-rotate multi-image product cards
 const _carouselTimers = {};

@@ -172,17 +172,19 @@ function initCardCarousels() {
   });
 }
 
-// Instant render from PRODUCTS so page never shows "Loading..."
+// Stale-while-revalidate: prefer localStorage cache → falls back to bundled PRODUCTS
 const _cgrid = document.getElementById('collection-grid');
 _cgrid.className = 'collection-grid';
-_cgrid.innerHTML = PRODUCTS.map(renderProductCard).join('');
+let _lastRender = getCachedProducts() || PRODUCTS;
+_cgrid.innerHTML = _lastRender.map(renderProductCard).join('');
 initCardCarousels();
 
-// Background refresh with live stock/price data
-fetch('/products')
-  .then(r => r.json())
+// Background refresh — only re-render if the data actually changed
+fetchAndCacheProducts()
   .then(products => {
     if (!products || !products.length) return;
+    if (JSON.stringify(products) === JSON.stringify(_lastRender)) return;
+    _lastRender = products;
     _cgrid.innerHTML = products.map(renderProductCard).join('');
     initCardCarousels();
   })

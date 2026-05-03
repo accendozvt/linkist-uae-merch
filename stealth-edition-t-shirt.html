@@ -215,15 +215,25 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 
 // Render INSTANTLY from local PRODUCTS so the page paints immediately,
 // then refresh from /products API in the background to pick up live stock + price changes.
-initProduct(_product?.stock || null, false);
-fetch('/products')
-  .then(r => r.json())
+// Stale-while-revalidate: prefer localStorage cache for instant + accurate render,
+// fall back to bundled PRODUCTS on first-ever visit, refresh in background.
+const _cached = getCachedProducts();
+const _cachedProduct = _cached?.find(p => p.id === PRODUCT_ID);
+if (_cachedProduct) {
+  _product = _cachedProduct;
+  _productName = _cachedProduct.name;
+}
+initProduct(_product?.stock || null);
+
+fetchAndCacheProducts()
   .then(products => {
     const fresh = products.find(p => p.id === PRODUCT_ID);
     if (!fresh) return;
+    // Skip re-render if data is unchanged (avoids flicker on returning visits)
+    if (JSON.stringify(fresh) === JSON.stringify(_product)) return;
     _product = fresh;
     _productName = _product.name;
-    initProduct(_product.stock || null, true);
+    initProduct(_product.stock || null);
   })
   .catch(() => {});
 
@@ -231,7 +241,7 @@ function fmtPrice(p) {
   return 'AED ' + parseFloat(p).toFixed(2);
 }
 
-function initProduct(stockData, isLive = false) {
+function initProduct(stockData) {
   const p = _product;
   document.title = p.name + ' â€” I Never Left Â· Linkist';
 
@@ -244,21 +254,17 @@ function initProduct(stockData, isLive = false) {
   document.getElementById('prod-name').textContent = p.name;
   document.getElementById('prod-tagline').textContent = p.tagline || '';
 
-  // Price display â€” only render from live API data to prevent flash
+  // Price display
+  const origPrice = p.originalPrice || p.original_price;
   const priceWrap = document.getElementById('prod-price-wrap');
-  if (isLive) {
-    const origPrice = p.originalPrice || p.original_price;
-    priceWrap.innerHTML = (origPrice
-      ? `<div class="price-was-lg">${fmtPrice(origPrice)}</div>
-         <div class="price-main">${fmtPrice(p.price)}</div>`
-      : `<div class="price-main no-sale">${fmtPrice(p.price)}</div>`
-    ) + `<div class="free-shipping">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-      Free Shipping
-    </div>`;
-  } else if (!priceWrap.querySelector('.price-main')) {
-    priceWrap.innerHTML = '<div class="price-main" style="opacity:0.2;letter-spacing:0.05em;">AED â€”</div>';
-  }
+  priceWrap.innerHTML = (origPrice
+    ? `<div class="price-was-lg">${fmtPrice(origPrice)}</div>
+       <div class="price-main">${fmtPrice(p.price)}</div>`
+    : `<div class="price-main no-sale">${fmtPrice(p.price)}</div>`
+  ) + `<div class="free-shipping">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    Free Shipping
+  </div>`;
 
   // Image badges (badge label + low-stock warning)
   const badgesEl = document.getElementById('prod-img-badges');

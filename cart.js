@@ -1,3 +1,27 @@
+// ── PRODUCTS CACHE (stale-while-revalidate) ───────────────────
+// Cache /products responses in localStorage so returning visitors get instant,
+// accurate renders without waiting for the network. Pages call:
+//   const cached = getCachedProducts();          // null on first visit
+//   fetchAndCacheProducts().then(fresh => ...)   // background refresh
+const PRODUCTS_CACHE_KEY = 'products_cache_v1';
+function getCachedProducts() {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function setCachedProducts(products) {
+  try { localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(products)); } catch {}
+}
+function fetchAndCacheProducts() {
+  return fetch('/products')
+    .then(r => r.json())
+    .then(products => {
+      if (Array.isArray(products) && products.length) setCachedProducts(products);
+      return products;
+    });
+}
+
 // ── AUTH HELPERS ──────────────────────────────────────────────
 function getCustomer() {
   try {
