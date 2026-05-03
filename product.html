@@ -54,14 +54,19 @@
 .other-grid a { color: var(--white); text-decoration: none; }
 .other-grid a * { color: inherit; }
 .pcard-tag { color: #888 !important; }
-.view-cart-btn {
-  display:none; width:100%; margin-top:10px;
-  background:transparent; border:1px solid var(--white); color:var(--white);
-  border-radius:8px; padding:12px; cursor:pointer;
-  font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.08em;
-  text-align:center; text-decoration:none; transition:background 0.2s;
-}
-.view-cart-btn:hover { background:rgba(255,255,255,0.08); }
+.product-price-row { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+.product-price-original { font-family:'DM Sans',sans-serif; font-size:18px; font-weight:400; color:#555; text-decoration:line-through; }
+.product-price-sale { color:#E53935 !important; }
+.size-stock-hint { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; margin-top:8px; display:none; }
+.notify-size-link { font-family:'Space Mono',monospace; font-size:10px; color:#666; text-decoration:none; cursor:pointer; display:none; margin-top:8px; }
+.notify-size-link:hover { color:#fff; }
+.notify-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:20px; }
+.notify-modal-overlay.open { display:flex; }
+.notify-modal { background:#111; border:1px solid #2a2a2a; border-radius:14px; padding:32px; max-width:380px; width:100%; text-align:center; position:relative; }
+.notify-modal h3 { font-family:'Inter',sans-serif; font-size:28px; margin:0 0 8px; }
+.notify-modal p { font-size:13px; color:#888; margin:0 0 20px; line-height:1.6; }
+.notify-modal input { width:100%; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#F5F5F5; font-size:14px; padding:12px 14px; outline:none; margin-bottom:12px; font-family:'DM Sans',sans-serif; box-sizing:border-box; }
+.notify-modal-close { position:absolute; top:12px; right:16px; background:none; border:none; color:#555; font-size:22px; cursor:pointer; }
 @media(max-width:768px) {
   .product-wrap{grid-template-columns:1fr;gap:32px;padding:80px 20px 48px}
   .product-img-main{position:relative;top:0}
@@ -81,6 +86,17 @@
 <div id="nav-root"></div>
 <div id="page-content"><div class="loading-wrap">Loading...</div></div>
 <div id="footer-root"></div>
+
+<div class="notify-modal-overlay" id="notify-modal">
+  <div class="notify-modal">
+    <button class="notify-modal-close" onclick="closeNotifyModal()">×</button>
+    <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;margin-bottom:2px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify Me</h3>
+    <p id="notify-modal-desc">Enter your email and we'll notify you when it's back.</p>
+    <input type="email" id="notify-email" placeholder="your@email.com" autocomplete="email"/>
+    <button class="btn-primary" style="width:100%;" onclick="submitNotify()">Notify Me</button>
+    <div id="notify-feedback" style="font-size:12px;margin-top:10px;display:none;"></div>
+  </div>
+</div>
 
 <script src="cart.js"></script>
 <script>
@@ -130,12 +146,23 @@ function renderPage(product, allProducts) {
           <h1 class="product-name">${product.name}</h1>
           <p class="product-tagline">${product.tagline || ''}</p>
         </div>
-        <div class="product-price">AED ${parseFloat(product.price).toFixed(2)}</div>
+        <div class="product-price-row">
+          ${(product.compare_at_price || product.original_price) && parseFloat(product.compare_at_price || product.original_price) > parseFloat(product.price)
+            ? `<span class="product-price product-price-sale">AED ${parseFloat(product.price).toFixed(2)}</span>
+               <span class="product-price-original">AED ${parseFloat(product.compare_at_price || product.original_price).toFixed(2)}</span>`
+            : `<span class="product-price">AED ${parseFloat(product.price).toFixed(2)}</span>`
+          }
+        </div>
         <hr class="product-divider">
         <div>
           <span class="label">Select Size</span>
           <div class="size-grid" id="size-grid"></div>
           <div class="size-error" id="size-error">Please select a size</div>
+          <div class="size-stock-hint" id="size-stock-hint"></div>
+          <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal('${product.id}','${(product.name||'').replace(/'/g,"\\'")}', window._selectedSize || '')">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            Notify me when back in stock
+          </a>
         </div>
         <div>
           <span class="label">Quantity</span>
@@ -148,7 +175,6 @@ function renderPage(product, allProducts) {
         <div class="action-row">
           <button class="btn-primary full" id="atc-btn">Add to Cart</button>
         </div>
-        <a href="cart.html" class="view-cart-btn" id="view-cart-btn">VIEW CART →</a>
         <hr class="product-divider">
         <div>
           <span class="label">About This Design</span>
@@ -186,27 +212,50 @@ function renderPage(product, allProducts) {
 
   // Size buttons
   let selectedSize = null;
+  window._selectedSize = null;
   const sizeGrid = document.getElementById('size-grid');
   const stockData = product.stock || {};
+  const hasStockData = Object.keys(stockData).length > 0;
+  const stockHintEl = document.getElementById('size-stock-hint');
+  const notifySizeLink = document.getElementById('notify-size-link');
 
   SIZES.forEach(s => {
-    const qty = stockData[s] ?? 999;
+    const qty = hasStockData ? (Number.isFinite(+stockData[s]) ? +stockData[s] : 0) : 999;
     const btn = document.createElement('button');
     btn.className = 'sz';
     btn.dataset.size = s;
     btn.textContent = s;
-    if (qty === 0) {
+    const isSoldOut = qty === 0;
+    const isLowStock = !isSoldOut && qty > 0 && qty < 5;
+    if (isSoldOut) {
       btn.classList.add('sold-out');
-      btn.disabled = true;
-      btn.title = 'Sold Out';
-    } else if (qty < 5) {
-      btn.title = `Only ${qty} left`;
+      // Keep clickable so user can trigger notify
     }
     btn.addEventListener('click', () => {
       sizeGrid.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      selectedSize = s;
-      document.getElementById('size-error').style.display = 'none';
+      if (isSoldOut) {
+        selectedSize = null;
+        window._selectedSize = s;
+        stockHintEl.textContent = 'This size is sold out';
+        stockHintEl.style.display = 'block';
+        notifySizeLink.style.display = 'block';
+        document.getElementById('atc-btn').disabled = true;
+        document.getElementById('atc-btn').style.opacity = '0.4';
+      } else {
+        selectedSize = s;
+        window._selectedSize = s;
+        document.getElementById('atc-btn').disabled = false;
+        document.getElementById('atc-btn').style.opacity = '';
+        document.getElementById('size-error').style.display = 'none';
+        notifySizeLink.style.display = 'none';
+        if (isLowStock) {
+          stockHintEl.textContent = `⚡ Only ${qty} left in size ${s}`;
+          stockHintEl.style.display = 'block';
+        } else {
+          stockHintEl.style.display = 'none';
+        }
+      }
     });
     sizeGrid.appendChild(btn);
   });
@@ -232,17 +281,22 @@ function renderPage(product, allProducts) {
       setTimeout(() => { sizeGrid.style.outline = ''; sizeGrid.style.padding = ''; }, 1500);
       return;
     }
+    const itemKey = `${product.id}-${selectedSize}`;
     Cart.add(
       { id: product.id, name: product.name, price: product.price, image },
       selectedSize, qty
     );
     const btn = document.getElementById('atc-btn');
-    btn.textContent = 'Added to Cart';
+    btn.textContent = '✓ Added!';
     btn.style.background = '#1a4a1a';
     btn.style.color = '#4CAF50';
     setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background = ''; btn.style.color = ''; }, 2000);
-    document.getElementById('view-cart-btn').style.display = 'block';
-    showToast(product.name + ' (' + selectedSize + ' × ' + qty + ') added!');
+    openMiniCart(itemKey);
+  });
+
+  // Notify modal click-outside
+  document.getElementById('notify-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('notify-modal')) closeNotifyModal();
   });
 
   // Other products
@@ -262,6 +316,30 @@ function renderPage(product, allProducts) {
       </div>
     </a>`;
   }).join('');
+}
+</script>
+<script>
+let _notifyPid = '', _notifySize = '';
+function openNotifyModal(pid, pname, size) {
+  _notifyPid = pid; _notifySize = size;
+  document.getElementById('notify-modal-desc').innerHTML = size
+    ? `We'll email you when <strong>${pname}</strong> in size <strong>${size}</strong> is back.`
+    : `We'll email you when <strong>${pname}</strong> is back in stock.`;
+  document.getElementById('notify-email').value = '';
+  document.getElementById('notify-feedback').style.display = 'none';
+  document.getElementById('notify-modal').classList.add('open');
+}
+function closeNotifyModal() { document.getElementById('notify-modal').classList.remove('open'); }
+async function submitNotify() {
+  const email = document.getElementById('notify-email').value.trim();
+  if (!email) return;
+  const fb = document.getElementById('notify-feedback');
+  try {
+    const res = await fetch('/notify-me', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, product_id: _notifyPid, size: _notifySize }) });
+    const data = await res.json();
+    if (res.ok) { fb.textContent = "You're on the list!"; fb.style.color = '#007A3D'; fb.style.display = 'block'; setTimeout(closeNotifyModal, 2000); }
+    else { fb.textContent = data.error || 'Error'; fb.style.color = '#E53935'; fb.style.display = 'block'; }
+  } catch { fb.textContent = 'Could not connect.'; fb.style.color = '#E53935'; fb.style.display = 'block'; }
 }
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
