@@ -233,6 +233,16 @@ function closeMiniCart() {
   });
 })();
 
+function _syncConsentToServer(choice) {
+  const token = localStorage.getItem('customer_token');
+  if (!token) return; // not logged in — will sync at next login
+  fetch('/customer/consent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ consent: choice })
+  }).catch(() => {}); // fire-and-forget, non-critical
+}
+
 function setCookieConsent(choice) {
   localStorage.setItem('cookie_consent', choice);
   const banner = document.getElementById('cookie-banner');
@@ -241,6 +251,8 @@ function setCookieConsent(choice) {
   if (choice === 'essential') {
     window.va = function() {}; // no-op the analytics queue
   }
+  // Persist to server if a customer is logged in
+  _syncConsentToServer(choice);
 }
 
 // ── LOGO SVG ─────────────────────────────────────────────────

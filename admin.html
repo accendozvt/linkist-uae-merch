@@ -946,7 +946,7 @@ async function loadCustomers() {
   try {
     const customers = await api('/admin/customers');
     if (!customers.length) { body.innerHTML = '<div class="loading">No customers yet</div>'; return; }
-    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Coupon Code</th><th>Sent</th><th>Joined</th><th>Actions</th></tr></thead><tbody>`;
+    let html = `<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Type</th><th>Coupon Code</th><th>Sent</th><th>Consent</th><th>Joined</th><th>Actions</th></tr></thead><tbody>`;
     customers.forEach(c => {
       const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—';
       const sent = c.coupon_sent_at ? new Date(c.coupon_sent_at).toLocaleDateString('en-GB') : '—';
@@ -957,6 +957,12 @@ async function loadCustomers() {
         ? `<button onclick="resendCoupon('${escHtml(c.email)}', this)" style="background:transparent;border:1px solid #2a2a2a;color:#aaa;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;">Resend</button>`
         : '';
       const deleteBtn = `<button onclick="deleteCustomer('${escHtml(c.email)}','${escHtml((c.name || '').replace(/'/g, "\\'"))}', this)" style="background:transparent;border:1px solid rgba(229,57,53,0.4);color:#E53935;font-size:10px;padding:5px 10px;border-radius:5px;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:1px;margin-left:6px;">Delete</button>`;
+      const consentDate = c.cookie_consent_at ? new Date(c.cookie_consent_at).toLocaleDateString('en-GB') : null;
+      const consentCell = c.cookie_consent === 'all'
+        ? `<span title="Accepted all cookies${consentDate ? ' on ' + consentDate : ''}" style="color:#007A3D;font-size:12px;">✅ All</span>`
+        : c.cookie_consent === 'essential'
+          ? `<span title="Essential only${consentDate ? ' on ' + consentDate : ''}" style="color:#888;font-size:12px;">🔒 Essential</span>`
+          : `<span style="color:#444;font-size:11px;">—</span>`;
       html += `<tr>
         <td>${escHtml(c.name || '—')}</td>
         <td style="font-size:12px;color:#888;">${escHtml(c.email || '')}</td>
@@ -964,6 +970,7 @@ async function loadCustomers() {
         <td style="font-size:11px;color:${c.registered ? '#007A3D' : '#888'};">${c.registered ? 'Member' : 'Guest'}</td>
         <td>${couponCell}</td>
         <td style="font-size:11px;color:#666;">${sent}</td>
+        <td>${consentCell}</td>
         <td style="font-size:12px;color:#555;">${date}</td>
         <td style="white-space:nowrap;">${resendBtn}${deleteBtn}</td>
       </tr>`;

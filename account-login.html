@@ -267,6 +267,9 @@ async function doLogin() {
     if (!res.ok) throw new Error(data.error || 'Login failed');
     localStorage.setItem('customer_token', data.token);
     await linkGuestOrder(data.token);
+    // Retroactively sync any pre-login consent choice to the server
+    const priorConsent = localStorage.getItem('cookie_consent');
+    if (priorConsent) _syncConsentToServer(priorConsent);
     window.location.href = redirectTo;
   } catch (err) {
     errEl.textContent = err.message;
@@ -327,6 +330,8 @@ async function doRegister() {
     if (data.token) {
       localStorage.setItem('customer_token', data.token);
       await linkGuestOrder(data.token);
+      const priorConsent = localStorage.getItem('cookie_consent');
+      if (priorConsent) _syncConsentToServer(priorConsent);
       window.location.href = redirectTo;
     }
   } catch (err) {

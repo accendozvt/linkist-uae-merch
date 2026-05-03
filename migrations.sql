@@ -78,3 +78,7 @@ CREATE INDEX IF NOT EXISTS customers_reset_token_idx ON customers(password_reset
 
 -- ── Saved addresses (JSONB array per customer) ────────────────────
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS saved_addresses JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- ── Cookie / PDPL consent tracking ───────────────────────────────
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS cookie_consent VARCHAR(20);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS cookie_consent_at TIMESTAMPTZ;

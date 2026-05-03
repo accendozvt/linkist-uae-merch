@@ -1772,6 +1772,26 @@ app.delete('/customer/addresses/:addressId', requireCustomer, async (req, res) =
   }
 });
 
+// ── Cookie consent sync ──────────────────────────────────────────
+
+app.post('/customer/consent', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { consent } = req.body;
+    if (!['all', 'essential'].includes(consent)) {
+      return res.status(400).json({ error: 'Invalid consent value' });
+    }
+    const { error } = await supabase
+      .from('customers')
+      .update({ cookie_consent: consent, cookie_consent_at: new Date().toISOString() })
+      .eq('id', req.customerId);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Admin routes ────────────────────────────────────────────────
 
 app.get('/admin/stats', requireAdmin, async (req, res) => {
@@ -2272,7 +2292,7 @@ app.post('/admin/images/upload', requireAdmin, upload.array('images', 10), (req,
 async function loadCustomersWithCoupons() {
   if (!supabase) return [];
   const [{ data: regs }, { data: orders }, { data: coupons }] = await Promise.all([
-    supabase.from('customers').select('id, name, email, phone, created_at'),
+    supabase.from('customers').select('id, name, email, phone, created_at, cookie_consent, cookie_consent_at'),
     supabase.from('orders').select('customer_name, customer_email, customer_phone, created_at, customer_id'),
     supabase.from('coupons').select('email, code, sent_at'),
   ]);
@@ -2286,6 +2306,8 @@ async function loadCustomersWithCoupons() {
     byEmail[r.email.toLowerCase()] = {
       name: r.name || '', email: r.email, phone: r.phone || '',
       created_at: r.created_at, registered: true,
+      cookie_consent: r.cookie_consent || null,
+      cookie_consent_at: r.cookie_consent_at || null,
     };
   });
   // Pick up guest buyers whose email isn't in customers table yet
@@ -2329,7 +2351,7 @@ app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
   try {
     if (!supabase) return res.status(503).json({ error: 'Database not configured' });
     const rows = await loadCustomersWithCoupons();
-    const csv = ['Name,Email,Phone,Coupon Code,Coupon Sent,Registered,Joined'];
+    const csv = ['Name,Email,Phone,Coupon Code,Coupon Sent,Registered,Joined,Cookie Consent,Consent Date'];
     rows.forEach(c => {
       const cells = [
         c.name || '',
@@ -2339,6 +2361,8 @@ app.get('/admin/customers/csv', requireAdmin, async (req, res) => {
         c.coupon_sent_at ? new Date(c.coupon_sent_at).toISOString() : '',
         c.registered ? 'Yes' : 'Guest',
         c.created_at ? new Date(c.created_at).toISOString() : '',
+        c.cookie_consent || '',
+        c.cookie_consent_at ? new Date(c.cookie_consent_at).toISOString() : '',
       ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
       csv.push(cells);
     });
