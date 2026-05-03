@@ -12,8 +12,11 @@
 }
 .product-img-col { position:sticky; top:88px; display:flex; flex-direction:column; gap:12px; }
 .product-img-main {
-  background:#0d0d0d; border-radius:12px; overflow:hidden; aspect-ratio:1/1;
+  background:#0d0d0d; border-radius:12px; overflow:hidden; aspect-ratio:1/1; position:relative;
 }
+.prod-img-badge-wrap { position:absolute; top:10px; left:10px; z-index:2; display:flex; align-items:center; gap:5px; }
+.prod-img-badge { background:#E53935; color:#fff; font-family:'Space Mono',monospace; font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em; }
+.prod-img-stock { background:rgba(200,16,46,0.85); color:#fff; font-family:'Space Mono',monospace; font-size:9px; padding:3px 8px; border-radius:3px; letter-spacing:0.08em; }
 .product-img-main img { width:100%; height:100%; object-fit:cover; display:block; transition:opacity 0.2s; }
 .thumb-strip { display:none; gap:8px; flex-wrap:wrap; }
 .thumb {
@@ -51,9 +54,10 @@
 
 /* Divider */
 .product-divider { border:none; border-top:1px solid #1a1a1a; }
-.label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#555; text-transform:uppercase; margin-bottom:10px; display:block; }
+.label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#bbb; text-transform:uppercase; margin-bottom:10px; display:block; }
 
 /* Sizes */
+.sz { color:#ccc !important; border-color:#2a2a2a !important; }
 .sz.sold-out {
   opacity:0.45; text-decoration:line-through; border-color:#1e1e1e;
   cursor:pointer !important; pointer-events:auto !important;
@@ -69,10 +73,10 @@
 }
 .notify-size-link:hover { opacity:0.75; }
 
-.product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.55); }
+.product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.82); }
 .product-desc strong { color:#F5F5F5; font-weight:500; }
-.details-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
-.details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.5); display:flex; align-items:center; gap:8px; }
+.details-list { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; }
+.details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.82); display:flex; align-items:center; gap:8px; }
 .details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
 .action-row { display:flex; gap:10px; align-items:center; }
 .size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:6px; }
@@ -119,6 +123,7 @@
   <div class="product-img-col">
     <div class="product-img-main">
       <img id="prod-img" src="" alt=""/>
+      <div class="prod-img-badge-wrap" id="prod-img-badges"></div>
     </div>
     <div class="thumb-strip" id="thumb-strip"></div>
   </div>
@@ -210,7 +215,7 @@ document.getElementById('footer-root').innerHTML = renderFooter();
 
 // Render INSTANTLY from local PRODUCTS so the page paints immediately,
 // then refresh from /products API in the background to pick up live stock + price changes.
-initProduct(_product?.stock || null);
+initProduct(_product?.stock || null, false);
 fetch('/products')
   .then(r => r.json())
   .then(products => {
@@ -218,7 +223,7 @@ fetch('/products')
     if (!fresh) return;
     _product = fresh;
     _productName = _product.name;
-    initProduct(_product.stock || null);
+    initProduct(_product.stock || null, true);
   })
   .catch(() => {});
 
@@ -226,7 +231,7 @@ function fmtPrice(p) {
   return 'AED ' + parseFloat(p).toFixed(2);
 }
 
-function initProduct(stockData) {
+function initProduct(stockData, isLive = false) {
   const p = _product;
   document.title = p.name + ' — I Never Left · Linkist';
 
@@ -239,17 +244,31 @@ function initProduct(stockData) {
   document.getElementById('prod-name').textContent = p.name;
   document.getElementById('prod-tagline').textContent = p.tagline || '';
 
-  // Price display
-  const origPrice = p.originalPrice || p.original_price;
+  // Price display — only render from live API data to prevent flash
   const priceWrap = document.getElementById('prod-price-wrap');
-  priceWrap.innerHTML = (origPrice
-    ? `<div class="price-was-lg">${fmtPrice(origPrice)}</div>
-       <div class="price-main">${fmtPrice(p.price)}</div>`
-    : `<div class="price-main no-sale">${fmtPrice(p.price)}</div>`
-  ) + `<div class="free-shipping">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-    Free Shipping
-  </div>`;
+  if (isLive) {
+    const origPrice = p.originalPrice || p.original_price;
+    priceWrap.innerHTML = (origPrice
+      ? `<div class="price-was-lg">${fmtPrice(origPrice)}</div>
+         <div class="price-main">${fmtPrice(p.price)}</div>`
+      : `<div class="price-main no-sale">${fmtPrice(p.price)}</div>`
+    ) + `<div class="free-shipping">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Free Shipping
+    </div>`;
+  } else if (!priceWrap.querySelector('.price-main')) {
+    priceWrap.innerHTML = '<div class="price-main" style="opacity:0.2;letter-spacing:0.05em;">AED —</div>';
+  }
+
+  // Image badges (badge label + low-stock warning)
+  const badgesEl = document.getElementById('prod-img-badges');
+  if (badgesEl) {
+    const badgeHtml = p.badge ? `<span class="prod-img-badge">${p.badge}</span>` : '';
+    const totalStock = stockData ? Object.values(stockData).reduce((a, b) => a + b, 0) : null;
+    const lowStock = totalStock !== null && totalStock > 0 && totalStock <= 12;
+    const stockHtml = lowStock ? `<span class="prod-img-stock">Only ${totalStock} left</span>` : '';
+    badgesEl.innerHTML = badgeHtml + stockHtml;
+  }
 
   document.getElementById('prod-desc').innerHTML = p.description || '';
   document.getElementById('prod-details').innerHTML = (p.details || []).map(d => '<li>' + d + '</li>').join('');
@@ -335,7 +354,7 @@ function initSizes(stockData) {
       selectedSize = btn.dataset.size;
       document.getElementById('size-error').style.display = 'none';
       if (btn.dataset.stockWarn) {
-        stockHint.textContent = '⚡ ' + btn.dataset.stockWarn + ' in this size';
+        stockHint.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="#E53935" style="vertical-align:middle;margin-right:4px;flex-shrink:0;"><path d="M13 2L4.09 13H11L10 22l9.91-11H14L13 2z"/></svg>' + btn.dataset.stockWarn + ' in this size';
         stockHint.style.display = 'block';
       } else {
         stockHint.style.display = 'none';

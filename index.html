@@ -193,8 +193,11 @@
 .pcard-img { position:relative; background:#0d0d0d; aspect-ratio:1/1; overflow:hidden; }
 .pcard-img img { width:100%; height:100%; object-fit:cover; transition:transform 0.5s; display:block; }
 .pcard:hover .pcard-img img { transform:scale(1.04); }
-.pcard-badge {
+.pcard-badges {
   position:absolute; top:10px; left:10px; z-index:1;
+  display:flex; align-items:center; gap:5px;
+}
+.pcard-badge {
   background:#E53935; color:#fff; font-family:'Space Mono',monospace;
   font-size:9px; padding:3px 8px; border-radius:3px; text-transform:uppercase; letter-spacing:0.1em;
 }
@@ -207,7 +210,6 @@
 .pcard-soldout { opacity:0.6; }
 .pcard-soldout:hover { transform:none; }
 .pcard-stock-warn {
-  position:absolute; top:10px; right:10px; z-index:1;
   background:rgba(200,16,46,0.85); color:#fff;
   font-family:'Space Mono',monospace; font-size:9px;
   padding:3px 8px; border-radius:3px; letter-spacing:0.08em;
@@ -411,8 +413,10 @@ function renderProductCard(p) {
       <div class="pcard-img">
         <img src="${image}" alt="${p.name}" loading="lazy" id="pcard-img-${p.id}"/>
         ${allImgs.length > 1 ? `<div class="pcard-img-dots" id="pcard-dots-${p.id}">${allImgs.map((_,i)=>`<span class="pcard-dot${i===0?' active':''}" onclick="event.preventDefault();pcardSetImg('${p.id}',${i})"></span>`).join('')}</div>` : ''}
-        ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
-        ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
+        <div class="pcard-badges">
+          ${soldOut ? '<div class="pcard-badge" style="background:#333;color:#888;">SOLD OUT</div>' : (p.badge ? `<div class="pcard-badge">${p.badge}</div>` : '')}
+          ${lowStock ? `<div class="pcard-stock-warn">Only ${totalStock} left</div>` : ''}
+        </div>
       </div>
       <div class="pcard-info">
         <div class="pcard-name">${p.name}</div>

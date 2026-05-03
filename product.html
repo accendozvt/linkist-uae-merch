@@ -30,11 +30,12 @@
 .product-price { font-family:'Inter',sans-serif; font-size:30px; font-weight:700; line-height:1; letter-spacing:-0.01em; }
 .product-price span { font-family:'DM Sans',sans-serif; font-size:16px; font-weight:400; color:#888; }
 .product-divider { border:none; border-top:1px solid #1a1a1a; }
-.label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#999; text-transform:uppercase; margin-bottom:10px; display:block; }
-.product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.72); }
+.label { font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.15em; color:#bbb; text-transform:uppercase; margin-bottom:10px; display:block; }
+.sz { color:#ccc !important; border-color:#2a2a2a !important; }
+.product-desc { font-size:14px; font-weight:300; line-height:1.8; color:rgba(255,255,255,0.82); }
 .product-desc strong { color:#F5F5F5; font-weight:500; }
-.details-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
-.details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.72); display:flex; align-items:center; gap:8px; }
+.details-list { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; }
+.details-list li { font-size:13px; font-weight:300; color:rgba(255,255,255,0.82); display:flex; align-items:center; gap:8px; }
 .details-list li::before { content:''; width:4px; height:4px; border-radius:50%; background:#E53935; flex-shrink:0; }
 .action-row { display:flex; gap:10px; align-items:center; }
 .size-error { font-family:'Space Mono',monospace; font-size:10px; color:#E53935; display:none; margin-top:6px; }
@@ -250,7 +251,7 @@ function renderPage(product, allProducts) {
         document.getElementById('size-error').style.display = 'none';
         notifySizeLink.style.display = 'none';
         if (isLowStock) {
-          stockHintEl.textContent = `⚡ Only ${qty} left in size ${s}`;
+          stockHintEl.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="#E53935" style="vertical-align:middle;margin-right:4px;flex-shrink:0;"><path d="M13 2L4.09 13H11L10 22l9.91-11H14L13 2z"/></svg>Only ${qty} left in size ${s}`;
           stockHintEl.style.display = 'block';
         } else {
           stockHintEl.style.display = 'none';
