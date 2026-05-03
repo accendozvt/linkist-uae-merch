@@ -362,6 +362,10 @@ function renderStep2() {
             </div>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           </div>
+          <label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;cursor:pointer;">
+            <input type="checkbox" id="co-tos" checked style="width:16px;height:16px;accent-color:#E53935;cursor:pointer;flex-shrink:0;margin-top:2px;"/>
+            <span style="font-family:'Space Mono',monospace;font-size:10px;color:#555;line-height:1.6;">I agree to the <a href="terms-conditions.html" target="_blank" style="color:#aaa;text-decoration:underline;">Terms &amp; Conditions</a> and <a href="privacy-policy.html" target="_blank" style="color:#aaa;text-decoration:underline;">Privacy Policy</a></span>
+          </label>
           <button class="btn-primary full" id="co-pay-btn" onclick="submitPayment()" style="font-size:15px;padding:16px;">
             Pay AED ${total} with Card
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -428,6 +432,11 @@ function continueToPayment() {
 }
 
 async function submitPayment() {
+  const tosEl = document.getElementById('co-tos');
+  if (tosEl && !tosEl.checked) {
+    showErr('co-pay-error', 'Please agree to the Terms & Conditions to continue.');
+    return;
+  }
   const btn = document.getElementById('co-pay-btn');
   btn.textContent = 'Redirecting to Stripe…';
   btn.disabled = true;

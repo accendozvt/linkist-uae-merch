@@ -111,6 +111,138 @@ function showToast(msg, success = true) {
   t._timer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+// ── MINI-CART DRAWER ──────────────────────────────────────────
+(function injectMiniCartStyles() {
+  if (document.getElementById('mini-cart-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'mini-cart-styles';
+  style.textContent = `
+    .mc-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:900;opacity:0;pointer-events:none;transition:opacity 0.3s; }
+    .mc-overlay.open { opacity:1;pointer-events:all; }
+    .mc-drawer { position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:#111;border-left:1px solid #1e1e1e;z-index:901;transform:translateX(100%);transition:transform 0.35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column; }
+    .mc-drawer.open { transform:translateX(0); }
+    .mc-head { display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid #1e1e1e; }
+    .mc-title { font-family:'Inter',sans-serif;font-weight:800;font-size:18px; }
+    .mc-close { background:none;border:none;color:#555;font-size:24px;cursor:pointer;line-height:1;padding:4px; }
+    .mc-close:hover { color:#fff; }
+    .mc-items { flex:1;overflow-y:auto;padding:16px 22px;display:flex;flex-direction:column;gap:14px; }
+    .mc-item { display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center; }
+    .mc-img { width:56px;height:56px;border-radius:6px;background:#0d0d0d;overflow:hidden; }
+    .mc-img img { width:100%;height:100%;object-fit:cover;display:block; }
+    .mc-name { font-size:13px;font-weight:600;line-height:1.3; }
+    .mc-meta { font-family:'Space Mono',monospace;font-size:9px;color:#555;margin-top:3px; }
+    .mc-price { font-family:'Inter',sans-serif;font-weight:800;font-size:16px;white-space:nowrap; }
+    .mc-footer { padding:18px 22px;border-top:1px solid #1e1e1e; }
+    .mc-subtotal { display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px; }
+    .mc-subtotal-label { font-family:'Space Mono',monospace;font-size:10px;color:#555;letter-spacing:1px; }
+    .mc-subtotal-val { font-family:'Inter',sans-serif;font-weight:800;font-size:22px; }
+    .mc-actions { display:flex;flex-direction:column;gap:8px; }
+    .mc-empty { text-align:center;padding:60px 20px;color:#444;font-family:'Space Mono',monospace;font-size:12px; }
+  `;
+  document.head.appendChild(style);
+})();
+
+function openMiniCart(highlightKey) {
+  let overlay = document.getElementById('mc-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'mc-overlay';
+    overlay.className = 'mc-overlay';
+    overlay.onclick = closeMiniCart;
+    const drawer = document.createElement('div');
+    drawer.id = 'mc-drawer';
+    drawer.className = 'mc-drawer';
+    document.body.appendChild(overlay);
+    document.body.appendChild(drawer);
+  }
+  // Render cart contents
+  const items = Cart.get();
+  const total = Cart.total().toFixed(2);
+  const drawer = document.getElementById('mc-drawer');
+  drawer.innerHTML = `
+    <div class="mc-head">
+      <div class="mc-title">Your Cart <span style="font-family:'Space Mono',monospace;font-size:11px;color:#555;font-weight:400;margin-left:6px;">${items.reduce((s,i)=>s+i.qty,0)} item${items.length!==1?'s':''}</span></div>
+      <button class="mc-close" onclick="closeMiniCart()">×</button>
+    </div>
+    <div class="mc-items">
+      ${items.length === 0
+        ? '<div class="mc-empty">Your cart is empty</div>'
+        : items.map(item => `
+          <div class="mc-item" style="${item.key===highlightKey?'background:rgba(0,122,61,0.06);border-radius:8px;padding:6px;margin:-6px;':''}">
+            <div class="mc-img"><img src="${item.image||''}" alt="${item.name||''}"/></div>
+            <div>
+              <div class="mc-name">${item.name||''}</div>
+              <div class="mc-meta">${item.size} · Qty ${item.qty}</div>
+            </div>
+            <div class="mc-price">AED ${(item.price*item.qty).toFixed(2)}</div>
+          </div>`).join('')
+      }
+    </div>
+    ${items.length > 0 ? `
+    <div class="mc-footer">
+      <div class="mc-subtotal">
+        <span class="mc-subtotal-label">SUBTOTAL</span>
+        <span class="mc-subtotal-val">AED ${total}</span>
+      </div>
+      <div class="mc-actions">
+        <a href="checkout.html" class="btn-primary" style="text-decoration:none;text-align:center;padding:14px;font-size:13px;">Checkout →</a>
+        <a href="cart.html" class="btn-secondary" style="text-decoration:none;text-align:center;padding:11px;font-size:12px;">View Cart</a>
+      </div>
+    </div>` : ''}
+  `;
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    drawer.classList.add('open');
+  });
+  clearTimeout(drawer._autoClose);
+  drawer._autoClose = setTimeout(closeMiniCart, 8000);
+}
+
+function closeMiniCart() {
+  const overlay = document.getElementById('mc-overlay');
+  const drawer = document.getElementById('mc-drawer');
+  if (overlay) overlay.classList.remove('open');
+  if (drawer) { drawer.classList.remove('open'); clearTimeout(drawer._autoClose); }
+}
+
+// ── COOKIE CONSENT (UAE PDPL) ─────────────────────────────────
+(function initCookieConsent() {
+  if (localStorage.getItem('cookie_consent')) return; // Already decided
+  // Vercel Analytics is loaded via script tag; we wrap it in consent
+  document.addEventListener('DOMContentLoaded', function () {
+    if (localStorage.getItem('cookie_consent')) return;
+    const banner = document.createElement('div');
+    banner.id = 'cookie-banner';
+    banner.innerHTML = `
+      <style>
+        #cookie-banner{position:fixed;bottom:0;left:0;right:0;background:#111;border-top:1px solid #1e1e1e;padding:16px 24px;z-index:9999;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+        #cookie-banner p{flex:1;font-size:12px;color:#888;margin:0;line-height:1.6;min-width:200px;}
+        #cookie-banner a{color:#aaa;text-decoration:underline;}
+        .cb-btns{display:flex;gap:8px;flex-shrink:0;}
+        .cb-accept{background:#E53935;color:#fff;border:none;padding:9px 20px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Mono',monospace;letter-spacing:0.05em;}
+        .cb-decline{background:transparent;color:#555;border:1px solid #333;padding:9px 16px;border-radius:6px;font-size:12px;cursor:pointer;font-family:'Space Mono',monospace;}
+        .cb-decline:hover{color:#888;border-color:#555;}
+      </style>
+      <p>We use cookies and anonymous analytics to improve your experience. By continuing you agree to our <a href="/privacy-policy.html">Privacy Policy</a>. UAE PDPL compliant.</p>
+      <div class="cb-btns">
+        <button class="cb-decline" onclick="setCookieConsent('essential')">Essential Only</button>
+        <button class="cb-accept" onclick="setCookieConsent('all')">Accept All</button>
+      </div>
+    `;
+    document.body.appendChild(banner);
+  });
+})();
+
+function setCookieConsent(choice) {
+  localStorage.setItem('cookie_consent', choice);
+  const banner = document.getElementById('cookie-banner');
+  if (banner) banner.remove();
+  // If they declined analytics, disable Vercel Analytics beacon
+  if (choice === 'essential') {
+    window.va = function() {}; // no-op the analytics queue
+  }
+}
+
 // ── LOGO SVG ─────────────────────────────────────────────────
 const LOGO_SVG = `<svg viewBox="0 0 28 28" fill="none"><path d="M22 5C18 5 8 10 6 22C10 18 14 16 22 5Z" fill="#E53935"/><path d="M22 5C22 5 20 14 12 22C16 22 20 18 22 5Z" fill="#B71C1C"/></svg>`;
 const LOGO_IMG = `<img src="/images/linkist-white.png" alt="Linkist" style="height:28px;width:auto;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/><span style="display:none">${LOGO_SVG}</span>`;

@@ -140,6 +140,7 @@
       <span class="label">Select Size</span>
       <div class="size-grid" id="size-grid"></div>
       <div class="size-error" id="size-error">Please select a size</div>
+      <div id="size-stock-hint" style="display:none;margin-top:6px;font-family:'Space Mono',monospace;font-size:10px;color:#E53935;letter-spacing:0.05em;"></div>
       <a class="notify-size-link" id="notify-size-link" onclick="openNotifyModal(PRODUCT_ID, _productName, '')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
         Notify me when a size is back in stock
@@ -322,6 +323,7 @@ function initSizes(stockData) {
   }
 
   // Click: sold-out → open notify modal for THAT size; available → select it
+  const stockHint = document.getElementById('size-stock-hint');
   sizeGrid.querySelectorAll('.sz').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.soldOut === 'true') {
@@ -332,6 +334,13 @@ function initSizes(stockData) {
       btn.classList.add('active');
       selectedSize = btn.dataset.size;
       document.getElementById('size-error').style.display = 'none';
+      // Show inline stock warning if low
+      if (btn.dataset.stockWarn) {
+        stockHint.textContent = '⚡ ' + btn.dataset.stockWarn + ' in this size';
+        stockHint.style.display = 'block';
+      } else {
+        stockHint.style.display = 'none';
+      }
     });
   });
 }
@@ -357,14 +366,14 @@ document.getElementById('atc-btn').addEventListener('click', () => {
     setTimeout(() => { sg.style.outline=''; sg.style.padding=''; }, 1500);
     return;
   }
+  const itemKey = `${_product.id}-${selectedSize}`;
   Cart.add(_product, selectedSize, qty);
   const btn = document.getElementById('atc-btn');
-  btn.textContent = 'Added to Cart';
+  btn.textContent = '✓ Added!';
   btn.style.background = '#1a4a1a';
   btn.style.color = '#4CAF50';
   setTimeout(() => { btn.textContent = 'Add to Cart'; btn.style.background=''; btn.style.color=''; }, 2000);
-  document.getElementById('view-cart-btn').style.display = 'block';
-  showToast(_product.name + ' (' + selectedSize + ' \xd7 ' + qty + ') added!');
+  openMiniCart(itemKey);
 });
 
 // Notify modal

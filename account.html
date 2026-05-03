@@ -229,6 +229,8 @@
   <div class="account-tabs">
     <button class="account-tab active" onclick="switchPanel('orders', this)">My Orders</button>
     <button class="account-tab" onclick="switchPanel('details', this)">My Details</button>
+    <button class="account-tab" onclick="switchPanel('addresses', this)">Addresses</button>
+    <button class="account-tab" onclick="switchPanel('privacy', this)">Privacy &amp; Data</button>
   </div>
 
   <!-- Orders Panel -->
@@ -307,6 +309,63 @@
       <div class="form-message" id="pw-msg"></div>
     </div>
   </div>
+
+  <!-- Addresses Panel -->
+  <div class="tab-panel" id="panel-addresses">
+    <div class="details-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div class="details-section-title" style="margin:0;">Saved Addresses</div>
+        <button class="btn-secondary" style="font-size:12px;padding:9px 16px;" onclick="showAddAddressForm()">+ Add New</button>
+      </div>
+      <div id="addresses-list"><div style="color:#444;font-family:'Space Mono',monospace;font-size:12px;padding:20px 0;text-align:center;">Loading...</div></div>
+
+      <!-- Add address form (hidden) -->
+      <div id="add-address-form" style="display:none;margin-top:24px;border-top:1px solid #1e1e1e;padding-top:24px;">
+        <div class="details-section-title">New Address</div>
+        <div class="field"><label>Label (e.g. Home, Office)</label><input type="text" id="addr-label" placeholder="Home" /></div>
+        <div class="field"><label>Address Line 1</label><input type="text" id="addr-line1" placeholder="Building, street, area" autocomplete="address-line1"/></div>
+        <div class="field"><label>Address Line 2 (optional)</label><input type="text" id="addr-line2" placeholder="Apartment, floor" autocomplete="address-line2"/></div>
+        <div class="form-row">
+          <div class="field"><label>Emirate</label><input type="text" id="addr-state" placeholder="e.g. Dubai" /></div>
+          <div class="field"><label>City / Area</label><input type="text" id="addr-city" placeholder="e.g. Downtown" /></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Postal Code (optional)</label><input type="text" id="addr-postal" placeholder="00000" /></div>
+          <div class="field"><label>Country</label><input type="text" id="addr-country" value="United Arab Emirates" /></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button class="btn-primary" onclick="saveNewAddress()">Save Address</button>
+          <button class="btn-secondary" onclick="document.getElementById('add-address-form').style.display='none'">Cancel</button>
+        </div>
+        <div class="form-message" id="addr-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Privacy & Data Panel -->
+  <div class="tab-panel" id="panel-privacy">
+    <div class="details-section">
+      <div class="details-section-title">Your Data</div>
+      <p style="font-size:13px;color:#666;line-height:1.7;margin:0 0 20px;">Under the UAE Personal Data Protection Law (PDPL), you have the right to access, export and delete your personal data.</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="background:#0a0a0a;border:1px solid #1e1e1e;border-radius:10px;padding:20px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px;">Download My Data</div>
+          <p style="font-size:12px;color:#666;margin:0 0 14px;line-height:1.6;">Download a JSON file containing your profile, order history, and coupon data.</p>
+          <button class="btn-secondary" style="font-size:12px;padding:10px 20px;" onclick="exportData()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export My Data
+          </button>
+        </div>
+        <div style="background:#0a0a0a;border:1px solid rgba(229,57,53,0.2);border-radius:10px;padding:20px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px;color:#E53935;">Delete My Account</div>
+          <p style="font-size:12px;color:#666;margin:0 0 14px;line-height:1.6;">Permanently delete your account and all personal data. Your order records will be anonymised but retained for accounting purposes. This cannot be undone.</p>
+          <button class="btn-secondary" style="font-size:12px;padding:10px 20px;border-color:rgba(229,57,53,0.4);color:#E53935;" onclick="deleteAccount()">Delete My Account</button>
+          <div class="form-message" id="delete-msg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script src="cart.js"></script>
@@ -323,6 +382,7 @@ let customerData = null;
 document.addEventListener('DOMContentLoaded', () => {
   loadCustomer();
   loadOrders();
+  loadAddresses();
 });
 
 function switchPanel(name, btn) {
@@ -514,6 +574,117 @@ async function downloadInvoice(orderId) {
 function escHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Saved Addresses ────────────────────────────────────────────
+let _addresses = [];
+
+async function loadAddresses() {
+  try {
+    const res = await fetch('/customer/addresses', { headers: authHeaders() });
+    if (!res.ok) return;
+    _addresses = await res.json();
+    renderAddresses();
+  } catch {}
+}
+
+function renderAddresses() {
+  const el = document.getElementById('addresses-list');
+  if (!_addresses.length) {
+    el.innerHTML = '<div style="color:#555;font-family:\'Space Mono\',monospace;font-size:11px;padding:20px 0;text-align:center;">No saved addresses yet.</div>';
+    return;
+  }
+  el.innerHTML = _addresses.map(a => `
+    <div style="background:#0a0a0a;border:1px solid #1e1e1e;border-radius:8px;padding:16px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <span style="font-weight:700;font-size:13px;">${escHtml(a.label||'Address')}</span>
+          ${a.is_default ? '<span style="font-family:\'Space Mono\',monospace;font-size:9px;background:#007A3D;color:#fff;padding:2px 7px;border-radius:3px;letter-spacing:0.05em;">DEFAULT</span>' : ''}
+        </div>
+        <div style="font-size:13px;color:#888;line-height:1.6;">${escHtml(a.line1)}${a.line2?', '+escHtml(a.line2):''}, ${escHtml(a.city)}, ${escHtml(a.state)}${a.postal?', '+escHtml(a.postal):''}</div>
+        <div style="font-size:12px;color:#555;margin-top:2px;">${escHtml(a.country)}</div>
+      </div>
+      <button onclick="deleteAddress('${a.id}')" style="background:none;border:none;color:#555;cursor:pointer;font-size:18px;padding:4px;flex-shrink:0;" title="Remove">×</button>
+    </div>`).join('');
+}
+
+function showAddAddressForm() {
+  document.getElementById('add-address-form').style.display = 'block';
+  document.getElementById('addr-label').focus();
+}
+
+async function saveNewAddress() {
+  const msg = document.getElementById('addr-msg');
+  msg.style.display = 'none'; msg.className = 'form-message';
+  const line1 = document.getElementById('addr-line1').value.trim();
+  const city  = document.getElementById('addr-city').value.trim();
+  const state = document.getElementById('addr-state').value.trim();
+  if (!line1 || !city || !state) {
+    msg.textContent = 'Address line 1, emirate and city are required.';
+    msg.className = 'form-message error'; return;
+  }
+  try {
+    const res = await fetch('/customer/addresses', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({
+        label: document.getElementById('addr-label').value.trim() || 'Home',
+        line1, line2: document.getElementById('addr-line2').value.trim(),
+        city, state, postal: document.getElementById('addr-postal').value.trim(),
+        country: document.getElementById('addr-country').value.trim() || 'United Arab Emirates',
+        is_default: _addresses.length === 0,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.error || 'Error saving address.'; msg.className = 'form-message error'; return; }
+    _addresses = data;
+    renderAddresses();
+    document.getElementById('add-address-form').style.display = 'none';
+    ['addr-label','addr-line1','addr-line2','addr-city','addr-state','addr-postal'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('addr-country').value = 'United Arab Emirates';
+  } catch { msg.textContent = 'Could not save. Please try again.'; msg.className = 'form-message error'; }
+}
+
+async function deleteAddress(id) {
+  if (!confirm('Remove this address?')) return;
+  try {
+    const res = await fetch('/customer/addresses/' + id, { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) return;
+    _addresses = await res.json();
+    renderAddresses();
+  } catch {}
+}
+
+// ── Export Data ────────────────────────────────────────────────
+async function exportData() {
+  try {
+    const res = await fetch('/customer/export-data', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('customer_token') } });
+    if (!res.ok) { alert('Could not export data.'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'linkist-my-data.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch { alert('Could not export data. Please try again.'); }
+}
+
+// ── Delete Account ─────────────────────────────────────────────
+async function deleteAccount() {
+  const msg = document.getElementById('delete-msg');
+  msg.style.display = 'none'; msg.className = 'form-message';
+  const conf = prompt('This will permanently delete your account.\n\nType DELETE MY ACCOUNT to confirm:');
+  if (conf !== 'DELETE MY ACCOUNT') return;
+  try {
+    const res = await fetch('/customer/delete-account', {
+      method: 'DELETE', headers: authHeaders(),
+      body: JSON.stringify({ confirm: 'DELETE MY ACCOUNT' })
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.error || 'Error.'; msg.className = 'form-message error'; return; }
+    localStorage.removeItem('customer_token');
+    alert('Your account has been deleted. You will be redirected to the homepage.');
+    window.location.href = 'index.html';
+  } catch { msg.textContent = 'Could not delete account. Please try again.'; msg.className = 'form-message error'; }
 }
 </script>
 <script defer src="/_vercel/insights/script.js"></script>

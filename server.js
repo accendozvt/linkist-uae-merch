@@ -1569,6 +1569,209 @@ app.put('/customer/password', requireCustomer, async (req, res) => {
   }
 });
 
+// ── Forgot / Reset password ─────────────────────────────────────
+
+app.post('/auth/forgot-password', async (req, res) => {
+  if (isRateLimited(`fpwd:${req.ip}`, 5, 60 * 60 * 1000)) return res.status(429).json({ error: 'Too many attempts. Try again in an hour.' });
+  // Always return 200 so we don't leak whether an email exists
+  res.json({ ok: true });
+  try {
+    const { email } = req.body;
+    if (!email || !supabase) return;
+    const { data: customer } = await supabase.from('customers')
+      .select('id, name, email, email_verified').eq('email', email.toLowerCase().trim()).single();
+    if (!customer || !customer.email_verified) return;
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+    await supabase.from('customers').update({
+      password_reset_token: tokenHash,
+      password_reset_expires: expires,
+    }).eq('id', customer.id);
+
+    const appOrigin = process.env.APP_URL || 'https://ineverleft.linkist.ai';
+    const resetUrl = `${appOrigin}/reset-password.html?token=${rawToken}`;
+    const firstName = customer.name?.split(' ')[0] || 'there';
+
+    await sendMail({
+      from: 'Linkist UAE <hello@linkist.ai>',
+      to: customer.email,
+      subject: 'Reset your password — Linkist UAE',
+      html: `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0a0a0a;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td style="background:#C8102E;height:5px;"></td><td style="background:#fff;height:5px;"></td>
+    <td style="background:#111;height:5px;"></td><td style="background:#007A3D;height:5px;"></td>
+  </tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:32px 40px 28px;text-align:center;border-bottom:1px solid #1e1e1e;">
+    <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:5px;">LINKIST</div>
+    <div style="font-size:11px;color:#555;letter-spacing:3px;margin-top:8px;">I Never Left · UAE</div>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:40px;text-align:center;">
+    <h1 style="color:#fff;font-size:24px;margin:0 0 12px;">Reset your password</h1>
+    <p style="color:#888;font-size:14px;line-height:1.8;margin:0 0 28px;">Hi ${escHtml(firstName)}, we received a request to reset your password. Click the button below — the link expires in 1 hour.</p>
+    <a href="${resetUrl}" style="display:inline-block;background:#E53935;color:#fff;font-size:13px;font-weight:bold;text-decoration:none;padding:16px 36px;border-radius:8px;letter-spacing:1px;">RESET MY PASSWORD</a>
+    <p style="color:#444;font-size:12px;margin-top:24px;">If you didn't request this, you can safely ignore this email. Your password will not change.</p>
+  </td></tr></table>
+  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding:20px 40px;text-align:center;border-top:1px solid #1e1e1e;">
+    <div style="font-size:11px;color:#444;">#WeStandWithUAE · linkist.ai</div>
+  </td></tr></table>
+</div></body></html>`
+    }).catch(e => console.error('Reset password email failed:', e.message));
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+  }
+});
+
+app.post('/auth/reset-password', async (req, res) => {
+  if (isRateLimited(`rpwd:${req.ip}`, 10, 60 * 60 * 1000)) return res.status(429).json({ error: 'Too many attempts. Try again later.' });
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and new password are required.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured.' });
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const { data: customer } = await supabase.from('customers')
+      .select('id, password_reset_token, password_reset_expires')
+      .eq('password_reset_token', tokenHash).single();
+
+    if (!customer) return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new one.' });
+    if (new Date(customer.password_reset_expires) < new Date()) {
+      return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    await supabase.from('customers').update({
+      password_hash,
+      password_reset_token: null,
+      password_reset_expires: null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', customer.id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Reset password error:', err.message);
+    res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+});
+
+// ── Customer data export ─────────────────────────────────────────
+
+app.get('/customer/export-data', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const cid = req.customer.customerId;
+
+    const [{ data: customer }, { data: orders }, { data: orderItems }, { data: coupon }] = await Promise.all([
+      supabase.from('customers').select('id, name, email, phone, address_line1, address_line2, address_city, address_state, address_postal, address_country, created_at, last_login, saved_addresses').eq('id', cid).single(),
+      supabase.from('orders').select('*').eq('customer_id', cid).order('created_at', { ascending: false }),
+      supabase.from('order_items').select('*').in('order_id', (orders || []).map(o => o.id)),
+      supabase.from('coupons').select('code, created_at, sent_at').eq('email', req.customer.email).maybeSingle(),
+    ]);
+
+    const ordersWithItems = (orders || []).map(o => ({
+      ...o,
+      items: (orderItems || []).filter(i => i.order_id === o.id),
+    }));
+
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      profile: customer || {},
+      orders: ordersWithItems,
+      coupon: coupon || null,
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="linkist-my-data-${Date.now()}.json"`);
+    res.json(exportData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Delete own account ───────────────────────────────────────────
+
+app.delete('/customer/delete-account', requireCustomer, async (req, res) => {
+  try {
+    const { confirm } = req.body;
+    if (confirm !== 'DELETE MY ACCOUNT') return res.status(400).json({ error: 'Confirmation text did not match.' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const cid = req.customer.customerId;
+    const email = req.customer.email;
+
+    // Anonymize orders: detach from customer but keep order records for accounting
+    await supabase.from('orders').update({ customer_id: null }).eq('customer_id', cid);
+    // Remove personal data rows
+    await supabase.from('coupons').delete().eq('email', email.toLowerCase());
+    await supabase.from('stock_notifications').delete().eq('email', email.toLowerCase());
+    // Delete customer record
+    const { error } = await supabase.from('customers').delete().eq('id', cid);
+    if (error) throw error;
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Saved addresses ──────────────────────────────────────────────
+
+app.get('/customer/addresses', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.json([]);
+    const { data: customer } = await supabase.from('customers')
+      .select('saved_addresses').eq('id', req.customer.customerId).single();
+    res.json(customer?.saved_addresses || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/customer/addresses', requireCustomer, async (req, res) => {
+  try {
+    const { label, line1, line2, city, state, postal, country, is_default } = req.body;
+    if (!line1 || !city || !state) return res.status(400).json({ error: 'line1, city and state are required' });
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+
+    const { data: customer } = await supabase.from('customers')
+      .select('saved_addresses').eq('id', req.customer.customerId).single();
+    let addresses = customer?.saved_addresses || [];
+    if (addresses.length >= 5) return res.status(400).json({ error: 'Maximum 5 saved addresses reached.' });
+
+    const newAddr = {
+      id: crypto.randomUUID(),
+      label: label || 'Home',
+      line1, line2: line2 || '', city, state, postal: postal || '', country: country || 'United Arab Emirates',
+      is_default: is_default || addresses.length === 0,
+    };
+
+    if (newAddr.is_default) addresses = addresses.map(a => ({ ...a, is_default: false }));
+    addresses.push(newAddr);
+
+    await supabase.from('customers').update({ saved_addresses: addresses }).eq('id', req.customer.customerId);
+    res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/customer/addresses/:addressId', requireCustomer, async (req, res) => {
+  try {
+    if (!supabase) return res.status(503).json({ error: 'Database not configured' });
+    const { data: customer } = await supabase.from('customers')
+      .select('saved_addresses').eq('id', req.customer.customerId).single();
+    const addresses = (customer?.saved_addresses || []).filter(a => a.id !== req.params.addressId);
+    if (addresses.length && !addresses.some(a => a.is_default)) addresses[0].is_default = true;
+    await supabase.from('customers').update({ saved_addresses: addresses }).eq('id', req.customer.customerId);
+    res.json(addresses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Admin routes ────────────────────────────────────────────────
 
 app.get('/admin/stats', requireAdmin, async (req, res) => {

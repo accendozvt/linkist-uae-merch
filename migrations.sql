@@ -70,3 +70,11 @@ CREATE INDEX IF NOT EXISTS processed_webhook_events_processed_at_idx
 -- (Stripe only retries within ~3 days, so 30 is plenty safe)
 -- You can run this manually periodically:
 --   DELETE FROM processed_webhook_events WHERE processed_at < NOW() - INTERVAL '30 days';
+
+-- ── Forgot / Reset password ───────────────────────────────────────
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_token TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS customers_reset_token_idx ON customers(password_reset_token) WHERE password_reset_token IS NOT NULL;
+
+-- ── Saved addresses (JSONB array per customer) ────────────────────
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS saved_addresses JSONB NOT NULL DEFAULT '[]'::jsonb;

@@ -212,35 +212,15 @@
   font-family:'Space Mono',monospace; font-size:9px;
   padding:3px 8px; border-radius:3px; letter-spacing:0.08em;
 }
-/* Quick-add panel */
-.pcard-quickadd { padding:0 12px 14px; }
-.pcard-qa-sizes { display:flex; gap:4px; flex-wrap:wrap; }
-.pcard-qa-sizes .sz { width:32px; height:32px; font-size:8px; position:relative; }
-.pcard-qa-sizes .sz[data-stock-warn]::before {
-  content:''; position:absolute; top:-2px; right:-2px;
-  width:7px; height:7px; border-radius:50%;
-  background:#E53935; border:1.5px solid #111;
-}
-.pcard-qa-sizes .sz[data-stock-warn]:hover::after {
-  content:attr(data-stock-warn); position:absolute; bottom:calc(100% + 4px); left:50%;
-  transform:translateX(-50%); background:#C8102E; color:#fff; font-size:9px;
-  padding:2px 6px; border-radius:3px; white-space:nowrap; z-index:5;
-}
-.pcard-qa-sizes .sz[data-stock-warn]:first-child:hover::after { left:0; transform:none; }
-.pcard-qa-sizes .sz[data-stock-warn]:last-child:hover::after { left:auto; right:0; transform:none; }
-.pcard-qa-bottom { display:flex; gap:6px; margin-top:8px; align-items:center; }
-.pcard-qa-bottom .qty-wrap { flex-shrink:0; border-radius:6px; }
-.pcard-qa-bottom .qty-btn { width:30px; height:32px; font-size:14px; }
-.pcard-qa-bottom .qty-num { width:28px; font-size:12px; }
-.pcard-atc { flex:1; padding:8px 6px; font-size:10px; letter-spacing:0.06em; border-radius:6px; }
-.pcard-viewcart {
-  display:none; width:100%; margin-top:7px; padding:9px;
-  background:transparent; border:1px solid rgba(255,255,255,0.2); border-radius:6px;
+/* View Product button */
+.pcard-view-btn {
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  margin:0 12px 14px; padding:10px;
+  background:rgba(255,255,255,0.06); border-radius:6px;
   color:var(--white); font-family:'Space Mono',monospace; font-size:10px;
-  letter-spacing:0.06em; cursor:pointer; transition:border-color 0.2s;
-  text-decoration:none; text-align:center;
+  letter-spacing:0.06em; text-decoration:none; transition:background 0.2s;
 }
-.pcard-viewcart:hover { border-color:var(--white); }
+.pcard-view-btn:hover { background:rgba(255,255,255,0.12); }
 .pcard-soldout-label {
   margin:0 12px 14px; padding:9px; text-align:center;
   background:rgba(255,255,255,0.04); border-radius:6px;
@@ -420,17 +400,6 @@ function renderProductCard(p) {
   const allImgs = [image, ...extraImgs].filter(Boolean);
   const origPrice = p.originalPrice || p.original_price;
 
-  const sizeBtns = SIZES.map(s => {
-    const qty = sizeQty(s);
-    if (qty === 0) {
-      return `<button class="sz sold-out" disabled title="Sold out">${s}</button>`;
-    }
-    const lowSize = qty > 0 && qty <= 4 ? ` data-stock-warn="Only ${qty} left"` : '';
-    return `<button class="sz" data-size="${s}"${lowSize} onclick="qaSize('${p.id}',this)">${s}</button>`;
-  }).join('');
-
-  const hasSoldOutSizes = SIZES.some(s => sizeQty(s) === 0);
-
   function fmtP(v) { return 'AED ' + parseFloat(v).toFixed(2); }
   const priceHtml = origPrice
     ? `<span class="price-was">${fmtP(origPrice)}</span><span class="pcard-price-sale">${fmtP(p.price)}</span>`
@@ -455,19 +424,10 @@ function renderProductCard(p) {
       ? `<div class="pcard-soldout-label">Sold Out
            <button class="notify-btn" style="display:block;margin-top:8px;" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}','')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when back</button>
          </div>`
-      : `<div class="pcard-quickadd">
-          <div class="pcard-qa-sizes" id="qa-sizes-${p.id}">${sizeBtns}</div>
-          ${hasSoldOutSizes ? `<button class="notify-btn" id="qa-notify-${p.id}" onclick="openNotifyModal('${p.id}','${p.name.replace(/'/g,"\\'")}', getSelectedOrFirstSoldOut('${p.id}'))"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notify me when my size is back</button>` : ''}
-          <div class="pcard-qa-bottom">
-            <div class="qty-wrap">
-              <button class="qty-btn" onclick="qaQty('${p.id}',-1)">−</button>
-              <span class="qty-num" id="qa-qty-${p.id}">1</span>
-              <button class="qty-btn" onclick="qaQty('${p.id}',1)">+</button>
-            </div>
-            <button class="btn-primary pcard-atc" onclick="qaAdd('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.price},'${image}')">ADD TO CART</button>
-          </div>
-          <a href="cart.html" class="pcard-viewcart" id="qa-vc-${p.id}">VIEW CART →</a>
-        </div>`
+      : `<a href="${page}" class="pcard-view-btn">
+           View Product
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+         </a>`
     }
   </div>`;
 }
@@ -479,38 +439,6 @@ function pcardSetImg(pid, idx) {
   const imgEl = document.getElementById('pcard-img-' + pid);
   if (imgEl && imgs[idx]) imgEl.src = imgs[idx];
   document.querySelectorAll(`#pcard-dots-${pid} .pcard-dot`).forEach((d, i) => d.classList.toggle('active', i === idx));
-}
-
-function qaSize(pid, btn) {
-  document.querySelectorAll(`#qa-sizes-${pid} .sz`).forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-function qaQty(pid, delta) {
-  const el = document.getElementById(`qa-qty-${pid}`);
-  el.textContent = Math.max(1, Math.min(5, parseInt(el.textContent) + delta));
-}
-function getSelectedOrFirstSoldOut(pid) {
-  const active = document.querySelector(`#qa-sizes-${pid} .sz.active`);
-  if (active) return active.dataset.size || '';
-  const soldOut = document.querySelector(`#qa-sizes-${pid} .sz.sold-out`);
-  return soldOut ? (soldOut.textContent || '') : '';
-}
-function qaAdd(pid, name, price, image) {
-  const activeSize = document.querySelector(`#qa-sizes-${pid} .sz.active`);
-  if (!activeSize) {
-    const sizesEl = document.getElementById(`qa-sizes-${pid}`);
-    sizesEl.style.outline = '1px solid #E53935';
-    sizesEl.style.borderRadius = '6px';
-    sizesEl.style.padding = '4px';
-    setTimeout(() => { sizesEl.style.outline = ''; sizesEl.style.padding = ''; }, 1500);
-    return;
-  }
-  const size = activeSize.dataset.size;
-  const qty = parseInt(document.getElementById(`qa-qty-${pid}`).textContent);
-  Cart.add({ id: pid, name, price, image }, size, qty);
-  showToast(`${name} (${size} × ${qty}) added!`);
-  const vc = document.getElementById(`qa-vc-${pid}`);
-  if (vc) vc.style.display = 'block';
 }
 
 const grid = document.getElementById('products-grid');
